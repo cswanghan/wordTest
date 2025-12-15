@@ -6,12 +6,318 @@
 const app = document.getElementById('app');
 
 /**
+ * 渲染登录页
+ */
+function renderLogin() {
+    state.view = 'login';
+    analytics.trackPageView('login');
+
+    app.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-amber-50 to-orange-100 fade-in">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border-4 border-amber-100">
+                <div class="text-center mb-8">
+                    <span class="text-6xl block mb-2">🦁</span>
+                    <h1 class="text-4xl font-black text-amber-600 mb-2">Lion Festival</h1>
+                    <p class="text-gray-500 font-bold">G3 Spelling Challenge</p>
+                </div>
+
+                <form onsubmit="handleLogin(event)" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">用户名</label>
+                        <input type="text" id="login-username" required minlength="2"
+                               class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:outline-none transition text-lg"
+                               placeholder="请输入用户名">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">密码</label>
+                        <input type="password" id="login-password" required minlength="3"
+                               class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:outline-none transition text-lg"
+                               placeholder="请输入密码（至少3位）">
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                        登录 / 注册
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center text-xs text-gray-400">
+                    <p>首次登录将自动创建账户</p>
+                    <p class="mt-2">数据将保存在本地浏览器中</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 聚焦到用户名输入框
+    setTimeout(() => {
+        document.getElementById('login-username').focus();
+    }, 100);
+}
+
+/**
+ * 处理登录表单提交
+ * @param {Event} event - 表单事件
+ */
+function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+
+    analytics.trackClick('LOGIN_BUTTON', { username });
+
+    const result = login(username, password);
+    if (result.success) {
+        logger.info('LOGIN_SUCCESS', { username, timestamp: Date.now() });
+        renderHome();
+    } else {
+        logger.warn('LOGIN_FAILED', { username, reason: result.message });
+        alert(result.message);
+    }
+}
+
+/**
+ * 渲染用户数据面板
+ */
+function renderUserDashboard() {
+    state.view = 'dashboard';
+    analytics.trackPageView('dashboard');
+
+    if (!currentUser) {
+        renderLogin();
+        return;
+    }
+
+    const stats = analytics.getUserStats(currentUser.username);
+    const recentSessions = analytics.getSessionHistory(currentUser.username, 5);
+    const allUsers = getAllUsers();
+
+    app.innerHTML = `
+        <div class="min-h-screen bg-gray-50 p-4 fade-in">
+            <!-- 顶部栏 -->
+            <div class="max-w-6xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white text-2xl font-black">
+                                ${currentUser.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-800">${currentUser.username}</h2>
+                                <p class="text-gray-500">加入时间：${new Date(currentUser.createdAt).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <button onclick="logout()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold transition">
+                            退出登录
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-amber-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">总练习次数</div>
+                            <div class="text-3xl font-black text-amber-600">${stats.totalSessions}</div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">总得分</div>
+                            <div class="text-3xl font-black text-blue-600">${stats.totalScore}</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">平均准确率</div>
+                            <div class="text-3xl font-black text-purple-600">${stats.avgAccuracy}%</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">最佳连击</div>
+                            <div class="text-3xl font-black text-green-600">${stats.maxStreak}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近练习记录 -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <h3 class="text-xl font-black text-gray-800 mb-4">最近练习记录</h3>
+                    <div class="space-y-3">
+                        ${recentSessions.length > 0 ? recentSessions.map(session => `
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                                <div class="flex-1">
+                                    <div class="font-bold text-gray-800">${new Date(session.startTime).toLocaleString()}</div>
+                                    <div class="text-sm text-gray-500 mt-1">
+                                        分组：${session.settings?.groups?.join(', ') || 'N/A'} |
+                                        难度：${session.settings?.difficulty || 'standard'} |
+                                        用时：${Math.round(session.duration / 1000)}秒
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-black text-amber-600">${session.results?.totalScore || 0}</div>
+                                    <div class="text-sm text-gray-500">
+                                        ${session.results?.totalWords || 0}题
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('') : '<div class="text-gray-400 text-center py-8">暂无练习记录</div>'}
+                    </div>
+                </div>
+
+                <!-- 用户操作 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-xl font-black text-gray-800 mb-4">开始练习</h3>
+                        <button onclick="renderHome()" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-black py-4 rounded-xl text-lg shadow-lg transition-all transform hover:scale-105">
+                            🏠 返回首页
+                        </button>
+                        <button onclick="exportUserData()" class="w-full mt-3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition">
+                            📊 导出我的数据
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-xl font-black text-gray-800 mb-4">数据管理</h3>
+                        <button onclick="viewLogs()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition">
+                            📋 查看操作日志
+                        </button>
+                        <button onclick="if(confirm('确定要清除所有数据吗？此操作不可恢复！')) clearAllUserData()" class="w-full mt-3 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition">
+                            🗑️ 清除所有数据
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 导出用户数据
+ */
+function exportUserData() {
+    analytics.trackClick('EXPORT_DATA');
+    const data = analytics.exportUserData(currentUser.username);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wordtest_${currentUser.username}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    logger.info('DATA_EXPORTED', { username: currentUser.username });
+}
+
+/**
+ * 查看操作日志
+ */
+function viewLogs() {
+    analytics.trackClick('VIEW_LOGS');
+    const logs = logger.getLogsByUser(currentUser.username);
+    const stats = logger.getStats();
+
+    const logHtml = logs.slice(-50).reverse().map(log => `
+        <tr class="border-b border-gray-100">
+            <td class="py-2 px-4 text-xs font-mono">${new Date(log.timestamp).toLocaleTimeString()}</td>
+            <td class="py-2 px-4">
+                <span class="px-2 py-1 rounded text-xs font-bold ${
+                    log.level === 'INFO' ? 'bg-blue-100 text-blue-700' :
+                    log.level === 'WARN' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                }">${log.level}</span>
+            </td>
+            <td class="py-2 px-4 text-sm font-bold">${log.event}</td>
+            <td class="py-2 px-4 text-sm text-gray-600">${JSON.stringify(log.data)}</td>
+        </tr>
+    `).join('');
+
+    app.innerHTML = `
+        <div class="min-h-screen bg-gray-50 p-4">
+            <div class="max-w-6xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-black text-gray-800">📋 操作日志</h2>
+                        <button onclick="renderUserDashboard()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-bold transition">
+                            ← 返回
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">总日志数</div>
+                            <div class="text-2xl font-black text-blue-600">${stats.total}</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">INFO</div>
+                            <div class="text-2xl font-black text-green-600">${stats.byLevel.INFO || 0}</div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">WARN</div>
+                            <div class="text-2xl font-black text-yellow-600">${stats.byLevel.WARN || 0}</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">ERROR</div>
+                            <div class="text-2xl font-black text-red-600">${stats.byLevel.ERROR || 0}</div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="py-3 px-4 text-left text-xs font-bold text-gray-400 uppercase">时间</th>
+                                    <th class="py-3 px-4 text-left text-xs font-bold text-gray-400 uppercase">级别</th>
+                                    <th class="py-3 px-4 text-left text-xs font-bold text-gray-400 uppercase">事件</th>
+                                    <th class="py-3 px-4 text-left text-xs font-bold text-gray-400 uppercase">详情</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${logHtml || '<tr><td colspan="4" class="py-8 text-center text-gray-400">暂无日志</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 清除所有用户数据
+ */
+function clearAllUserData() {
+    analytics.trackClick('CLEAR_ALL_DATA');
+    analytics.clearUserData(currentUser.username);
+    logger.clearLogs();
+    alert('所有数据已清除！');
+    renderUserDashboard();
+}
+
+/**
  * 渲染首页
  */
 function renderHome() {
+    if (!currentUser) {
+        renderLogin();
+        return;
+    }
+
     state.view = 'home';
+    analytics.trackPageView('home');
+
+    const stats = analytics.getUserStats(currentUser.username);
+
     app.innerHTML = `
         <div class="min-h-screen flex flex-col items-center justify-center p-4 fade-in">
+            <!-- 用户信息栏 -->
+            <div class="absolute top-4 right-4 bg-white rounded-xl shadow-lg p-3 flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    ${currentUser.username.charAt(0).toUpperCase()}
+                </div>
+                <div class="hidden sm:block">
+                    <div class="font-bold text-gray-800 text-sm">${currentUser.username}</div>
+                    <div class="text-xs text-gray-500">${stats.totalSessions}次练习</div>
+                </div>
+                <button onclick="renderUserDashboard()" class="ml-2 text-gray-400 hover:text-amber-600 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
+
             <div class="text-center mb-10">
                 <span class="text-6xl block mb-2">🦁</span>
                 <h1 class="text-5xl font-black text-amber-600 mb-2 tracking-tight">Lion Festival</h1>

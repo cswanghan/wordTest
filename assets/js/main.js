@@ -35,13 +35,19 @@ const state = {
  */
 function updateGroups(checkbox) {
     const val = checkbox.value;
-    if (checkbox.checked) {
+    const wasChecked = checkbox.checked;
+
+    if (wasChecked) {
         if (!state.settings.groups.includes(val)) {
             state.settings.groups.push(val);
         }
     } else {
         state.settings.groups = state.settings.groups.filter(g => g !== val);
     }
+
+    // 记录设置变更
+    analytics.trackSettingChange('groups', { action: wasChecked ? 'add' : 'remove', value: val });
+    logger.userAction('GROUP_TOGGLE', 'checkbox', { group: val, checked: wasChecked });
 }
 
 /**
@@ -56,8 +62,12 @@ function getFilteredWords() {
  * 前往打印设置页
  */
 function goToPrintSettings() {
+    analytics.trackClick('GO_TO_PRINT_SETTINGS');
+    logger.userAction('CLICK', 'goToPrintSettings', { groups: state.settings.groups });
+
     const words = getFilteredWords();
     if (words.length === 0) {
+        logger.warn('PRINT_SETTINGS_NO_GROUPS', { groups: state.settings.groups });
         alert('请至少选择一个分组 (Please select at least one group)');
         return;
     }
@@ -68,6 +78,12 @@ function goToPrintSettings() {
  * 生成并预览打印单
  */
 function generateAndPreviewPrint() {
+    analytics.trackClick('GENERATE_PRINT');
+    logger.userAction('CLICK', 'generateAndPreviewPrint', {
+        settings: state.settings,
+        seed: state.seed
+    });
+
     state.seed = Date.now();
     const rng = seededRandom(state.seed);
     let words = getFilteredWords();
@@ -78,14 +94,28 @@ function generateAndPreviewPrint() {
 
     const items = words.map(w => generateDrillItem(w, rng, state.settings.difficulty));
     renderPrintPreview(items);
+
+    logger.info('PRINT_GENERATED', {
+        seed: state.seed,
+        wordCount: items.length,
+        groups: state.settings.groups,
+        difficulty: state.settings.difficulty
+    });
 }
 
 /**
  * 开始在线练习
  */
 function goToOnline() {
+    analytics.trackClick('START_ONLINE_PRACTICE');
+    logger.userAction('CLICK', 'goToOnline', {
+        groups: state.settings.groups,
+        difficulty: state.settings.difficulty
+    });
+
     const words = getFilteredWords();
     if (words.length === 0) {
+        logger.warn('ONLINE_NO_GROUPS', { groups: state.settings.groups });
         alert('请至少选择一个分组');
         return;
     }
@@ -94,6 +124,20 @@ function goToOnline() {
     const rng = seededRandom(state.seed);
     const shuffledWords = shuffleArray([...words], rng);
     const items = shuffledWords.map(w => generateDrillItem(w, rng, state.settings.difficulty));
+
+    // 开始练习会话记录
+    analytics.trackSessionStart({
+        groups: state.settings.groups,
+        difficulty: state.settings.difficulty,
+        showCN: state.settings.showCN
+    });
+
+    logger.info('PRACTICE_SESSION_START', {
+        seed: state.seed,
+        wordCount: items.length,
+        groups: state.settings.groups,
+        difficulty: state.settings.difficulty
+    });
 
     renderOnline(items);
 }
@@ -112,6 +156,10 @@ function handleKeyInput(key) {
         if (state.session.currentInputIndex > 0) {
             state.session.currentInputIndex--;
             updateOnlineUI();
+            analytics.trackKeyInput('Backspace', true, {
+                wordId: item.id,
+                position: state.session.currentInputIndex
+            });
         }
         return;
     }
@@ -127,7 +175,9 @@ function handleKeyInput(key) {
     if (!correctChar) return;
 
     // 检查输入是否正确
-    if (key.toLowerCase() === correctChar.toLowerCase()) {
+    const isCorrect = key.toLowerCase() === correctChar.toLowerCase();
+
+    if (isCorrect) {
         state.session.currentInputIndex++;
         if (state.session.currentInputIndex >= item.blankIndices.length) {
             handleWordComplete(item);
@@ -143,6 +193,14 @@ function handleKeyInput(key) {
         container.classList.add('shake');
         if (navigator.vibrate) navigator.vibrate(50);
     }
+
+    // 记录按键日志
+    analytics.trackKeyInput(key, isCorrect, {
+        wordId: item.id,
+        word: item.en,
+        position: state.session.currentInputIndex,
+        expected: correctChar
+    });
 }
 
 /**
@@ -155,7 +213,9 @@ function handleWordComplete(item) {
 
     const earnedPoints = calculateScore(item, timeSec, state.session.currentMistakes, state.session.streak);
 
-    if (state.session.currentMistakes === 0) {
+    const wasPerfect = state.session.currentMistakes === 0;
+
+    if (wasPerfect) {
         state.session.correctCount++;
         state.session.streak++;
         if (state.session.streak > state.session.maxStreak) {
@@ -165,6 +225,27 @@ function handleWordComplete(item) {
         state.session.wrongCount++;
         state.session.streak = 0;
     }
+
+    // 记录题目完成
+    analytics.trackWord({
+        wordId: item.id,
+        word: item.en,
+        timeSec: timeSec,
+        mistakes: state.session.currentMistakes,
+        score: earnedPoints,
+        perfect: wasPerfect,
+        streak: state.session.streak
+    });
+
+    logger.info('WORD_COMPLETED', {
+        wordId: item.id,
+        word: item.en,
+        timeSec: timeSec,
+        mistakes: state.session.currentMistakes,
+        score: earnedPoints,
+        perfect: wasPerfect,
+        streak: state.session.streak
+    });
 
     updateOnlineUI();
 
@@ -200,5 +281,41 @@ document.addEventListener('keydown', (e) => {
     handleKeyInput(e.key);
 });
 
-// 初始化应用
-renderHome();
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    logger.info('APP_INITIALIZING', { timestamp: Date.now() });
+
+    // 检查登录状态
+    if (checkAuth()) {
+        logger.info('AUTO_LOGIN', { username: currentUser.username });
+        renderHome();
+    } else {
+        logger.info('NO_AUTH', { timestamp: Date.now() });
+        renderLogin();
+    }
+});
+
+// 修改 finishSession 函数以记录会话完成
+const originalFinishSession = finishSession;
+finishSession = function() {
+    // 记录会话完成
+    const sessionData = {
+        totalScore: state.session.score,
+        totalWords: state.session.items.length,
+        correctCount: state.session.correctCount,
+        wrongCount: state.session.wrongCount,
+        maxStreak: state.session.maxStreak,
+        groups: state.settings.groups,
+        difficulty: state.settings.difficulty
+    };
+
+    analytics.trackSessionComplete(sessionData);
+    updateUserStats(sessionData);
+
+    logger.info('PRACTICE_SESSION_END', sessionData);
+
+    // 调用原始函数
+    if (originalFinishSession) {
+        originalFinishSession();
+    }
+};
