@@ -552,7 +552,6 @@ function renderOnline(items) {
         startTime: Date.now(),
         currentWordStartTime: Date.now(),
         currentInputIndex: 0,
-        userInputs: {}, // 记录用户输入（不按顺序）
         logs: []
     };
 
@@ -721,29 +720,19 @@ function updateOnlineUI() {
                 const blankIdxInArr = item.blankIndices.indexOf(i);
                 if (blankIdxInArr !== -1) {
                     isBlank = true;
-                    // 获取用户输入
-                    const userInput = state.session.userInputs && state.session.userInputs[i];
-                    const totalFilled = state.session.currentInputIndex;
 
-                    if (userInput) {
-                        // 已有用户输入
+                    // 根据 currentInputIndex 判断状态
+                    if (blankIdxInArr < state.session.currentInputIndex) {
+                        // 已经填入的位置
                         isFilled = true;
-                        displayChar = userInput;
                         statusClass = "bg-green-100 border-green-500 text-green-700 font-bold border-b-4";
-                    } else if (totalFilled < item.blankIndices.length) {
+                    } else if (blankIdxInArr === state.session.currentInputIndex) {
                         // 当前应该输入的位置
-                        const nextBlankPos = item.blankIndices[totalFilled];
-                        if (nextBlankPos === i) {
-                            isCurrentFocus = true;
-                            displayChar = '';
-                            statusClass = "bg-amber-50 border-amber-500 text-amber-800 border-b-4 shadow-lg scale-110 z-10";
-                        } else {
-                            // 还未轮到这个位置
-                            displayChar = '';
-                            statusClass = "bg-gray-100 border-gray-300 text-transparent border-b-4";
-                        }
+                        isCurrentFocus = true;
+                        displayChar = '';
+                        statusClass = "bg-amber-50 border-amber-500 text-amber-800 border-b-4 shadow-lg scale-110 z-10";
                     } else {
-                        // 所有位置都已填完
+                        // 还未轮到的位置
                         displayChar = '';
                         statusClass = "bg-gray-100 border-gray-300 text-transparent border-b-4";
                     }
@@ -751,7 +740,7 @@ function updateOnlineUI() {
 
                 wordHtml += `
                     <div class="w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 ${statusClass} ${isCurrentFocus ? 'cursor-blink' : ''}">
-                        ${isFilled ? displayChar : (isBlank ? displayChar : char)}
+                        ${isFilled ? char : displayChar}
                     </div>
                 `;
             }
