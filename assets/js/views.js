@@ -559,10 +559,12 @@ function renderOnline(items) {
     app.innerHTML = `
         <div class="h-screen flex flex-col bg-amber-50 overflow-hidden">
             <!-- 顶部栏 -->
-            <div class="bg-white p-4 shadow-sm flex justify-between items-center z-20">
-                <div class="flex items-center gap-3">
-                    <button onclick="if(confirm('确定要退出练习吗？进度将丢失。')) renderHome()" class="text-gray-400 hover:text-red-500 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            <div class="bg-white p-3 sm:p-4 shadow-sm flex justify-between items-center z-20">
+                <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <button onclick="if(confirm('确定要退出练习吗？进度将丢失。')) renderHome()" class="text-gray-400 hover:text-red-500 transition p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                     <div class="flex flex-col">
                         <span class="text-xs font-bold text-gray-400 uppercase">Current</span>
@@ -570,54 +572,65 @@ function renderOnline(items) {
                     </div>
                 </div>
 
-                <div class="flex flex-col items-center w-1/3">
+                <div class="flex flex-col items-center w-20 sm:w-1/3 px-2">
                     <div class="text-xs font-bold text-gray-400 mb-1" id="progress-text">0 / 0</div>
                     <div class="w-full bg-gray-200 rounded-full h-2">
                         <div id="progress-bar" class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
 
-                <div class="flex flex-col items-end">
+                <div class="flex flex-col items-end flex-shrink-0">
                     <span class="text-xs font-bold text-gray-400 uppercase">Score</span>
-                    <span class="font-black text-xl text-amber-600" id="score-display">0</span>
+                    <span class="font-black text-lg sm:text-xl text-amber-600" id="score-display">0</span>
                 </div>
             </div>
 
             <!-- 主内容区 -->
-            <div class="flex-1 flex flex-col items-center justify-center relative p-4">
+            <div class="flex-1 flex flex-col items-center justify-center relative p-2 sm:p-4 overflow-hidden">
 
                 <!-- 连击提示 -->
-                <div id="streak-container" class="absolute top-10 pointer-events-none transition-all duration-300 opacity-0 scale-50">
-                    <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-full font-black text-lg shadow-lg animate-bounce">
+                <div id="streak-container" class="absolute top-4 sm:top-10 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 scale-50 z-10">
+                    <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce">
                         🔥 <span id="streak-count">0</span> COMBO!
                     </div>
                 </div>
 
                 <!-- 单词显示容器 -->
-                <div id="word-container" class="flex flex-wrap justify-center mb-10 select-none">
+                <div id="word-container" class="flex flex-wrap justify-center items-center mb-6 sm:mb-10 select-none px-2 w-full max-w-4xl overflow-x-auto">
                     <!-- Words injected here -->
                 </div>
 
                 <!-- 中文提示 -->
-                <div id="cn-hint-container" class="transition-all duration-500 opacity-0 translate-y-4">
-                    <div id="cn-hint-text" class="text-2xl text-gray-600 font-bold bg-white px-8 py-3 rounded-2xl shadow-sm border border-gray-100">
+                <div id="cn-hint-container" class="transition-all duration-500 opacity-0 translate-y-4 w-full px-4 flex justify-center">
+                    <div id="cn-hint-text" class="text-lg sm:text-2xl text-gray-600 font-bold bg-white px-6 sm:px-8 py-2 sm:py-3 rounded-2xl shadow-sm border border-gray-100 max-w-md text-center">
                         ...
                     </div>
                 </div>
 
                 <!-- 得分反馈浮层 -->
-                <div id="feedback-layer" class="absolute pointer-events-none text-4xl font-black text-amber-500 opacity-0 transition-all duration-500 transform translate-y-0">
+                <div id="feedback-layer" class="absolute pointer-events-none text-2xl sm:text-4xl font-black text-amber-500 opacity-0 transition-all duration-500 transform translate-y-0">
                     +0
                 </div>
 
             </div>
 
             <!-- 底部键盘提示 -->
-            <div class="bg-white p-4 text-center text-gray-400 text-sm border-t border-gray-100">
+            <div class="bg-white p-3 sm:p-4 text-center text-gray-400 text-xs sm:text-sm border-t border-gray-100 flex-shrink-0">
                 <div class="hidden sm:block">直接使用键盘输入 • Backspace 删除</div>
-                <div class="sm:hidden text-amber-600 font-bold">点击虚拟键盘输入</div>
-                <!-- 输入框保持在 DOM 中，不被移除 -->
-                <input type="text" id="mobile-input" class="absolute opacity-0 top-0 h-full w-full" autocomplete="off" />
+                <div class="sm:hidden text-amber-600 font-bold mb-2">点击下方输入框</div>
+                <!-- 隐藏的输入框（用于移动端输入） -->
+                <input type="text" id="mobile-input" class="opacity-0 absolute pointer-events-none" autocomplete="off" />
+                <!-- 移动端虚拟键盘 -->
+                <div class="sm:hidden grid grid-cols-10 gap-1 max-w-md mx-auto">
+                    ${'QWERTYUIOP'.split('').concat(['']).concat('ASDFGHJKL'.split('')).concat(['']).concat('ZXCVBNM'.split('')).map(key => key ? `
+                        <button type="button" onclick="handleVirtualKey('${key}')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg text-sm transition">
+                            ${key}
+                        </button>
+                    ` : '<div></div>').join('')}
+                    <button type="button" onclick="handleVirtualKey('Backspace')" class="col-span-2 bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 font-bold py-2 px-3 rounded-lg text-xs transition">
+                        ⌫ 删除
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -690,18 +703,20 @@ function updateOnlineUI() {
 
     tokens.forEach((token, tIdx) => {
         const isTarget = (tIdx === item.targetTokenIndex);
-        wordHtml += `<div class="flex mx-2 mb-4">`;
+        // 为每个token添加适当的外边距
+        wordHtml += `<div class="flex items-center ${tIdx > 0 ? 'ml-4' : ''} mb-4">`;
 
-        for (let i = 0; i < token.length; i++) {
-            const char = token[i];
-            let isBlank = false;
-            let isCurrentFocus = false;
-            let isFilled = false;
-            let displayChar = char;
-            // 默认状态：透明边框，确保对齐
-            let statusClass = "bg-gray-50 border-transparent text-gray-700 border-b-4";
+        if (isTarget) {
+            // 目标词：需要挖空的词
+            for (let i = 0; i < token.length; i++) {
+                const char = token[i];
+                let isBlank = false;
+                let isCurrentFocus = false;
+                let isFilled = false;
+                let displayChar = char;
+                // 默认状态：透明边框，确保对齐
+                let statusClass = "bg-gray-50 border-transparent text-gray-700 border-b-4";
 
-            if (isTarget) {
                 const blankIdxInArr = item.blankIndices.indexOf(i);
                 if (blankIdxInArr !== -1) {
                     isBlank = true;
@@ -717,14 +732,18 @@ function updateOnlineUI() {
                         statusClass = "bg-gray-100 border-gray-300 text-transparent border-b-4";
                     }
                 }
-            }
 
-            wordHtml += `
-                <div class="w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 ${statusClass} ${isCurrentFocus ? 'cursor-blink' : ''}">
-                    ${isFilled ? char : displayChar}
-                </div>
-            `;
+                wordHtml += `
+                    <div class="w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 ${statusClass} ${isCurrentFocus ? 'cursor-blink' : ''}">
+                        ${isFilled ? char : displayChar}
+                    </div>
+                `;
+            }
+        } else {
+            // 非目标词：正常显示，不使用字母框
+            wordHtml += `<span class="text-3xl sm:text-4xl font-mono text-gray-800">${token}</span>`;
         }
+
         wordHtml += `</div>`;
     });
 

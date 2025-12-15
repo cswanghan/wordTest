@@ -319,3 +319,13 @@ finishSession = function() {
         originalFinishSession();
     }
 };
+
+/**
+ * 处理虚拟键盘输入（移动端）
+ * @param {string} key - 按键字符
+ */
+function handleVirtualKey(key) {
+    if (state.view !== 'online') return;
+    logger.userAction('VIRTUAL_KEY', 'mobile-keyboard', { key });
+    handleKeyInput(key);
+}
