@@ -166,20 +166,41 @@ function handleKeyInput(key) {
 
     // 只接受字母
     if (!/^[a-zA-Z]$/.test(key)) return;
-    if (state.session.currentInputIndex >= item.blankIndices.length) return;
 
-    const targetCharIdx = item.blankIndices[state.session.currentInputIndex];
+    // 初始化用户输入（如果还没有）
+    if (!state.session.userInputs) {
+        state.session.userInputs = {};
+    }
+
+    // 查找所有需要填充的位置
+    const filledPositions = Object.keys(state.session.userInputs).map(Number).sort((a, b) => a - b);
+    const nextPosition = filledPositions.length;
+
+    if (nextPosition >= item.blankIndices.length) return;
+
+    const targetCharIdx = item.blankIndices[nextPosition];
     if (targetCharIdx === undefined) return;
 
     const correctChar = item.targetToken[targetCharIdx];
     if (!correctChar) return;
 
-    // 检查输入是否正确
+    // 检查输入是否正确（不校验顺序，只校验字母是否正确）
     const isCorrect = key.toLowerCase() === correctChar.toLowerCase();
 
     if (isCorrect) {
+        // 记录用户输入（不按顺序）
+        state.session.userInputs[targetCharIdx] = key.toLowerCase();
         state.session.currentInputIndex++;
-        if (state.session.currentInputIndex >= item.blankIndices.length) {
+
+        // 检查是否所有字母都已输入正确
+        const allBlanks = item.blankIndices.length;
+        const correctInputs = Object.keys(state.session.userInputs).map(Number).filter(pos => {
+            const userInput = state.session.userInputs[pos];
+            const expectedChar = item.targetToken[pos];
+            return userInput && userInput === expectedChar.toLowerCase();
+        }).length;
+
+        if (correctInputs >= allBlanks) {
             handleWordComplete(item);
         } else {
             updateOnlineUI();
@@ -198,7 +219,7 @@ function handleKeyInput(key) {
     analytics.trackKeyInput(key, isCorrect, {
         wordId: item.id,
         word: item.en,
-        position: state.session.currentInputIndex,
+        position: nextPosition,
         expected: correctChar
     });
 }
@@ -212,6 +233,9 @@ function handleWordComplete(item) {
     const timeSec = (endTime - state.session.currentWordStartTime) / 1000;
 
     const earnedPoints = calculateScore(item, timeSec, state.session.currentMistakes, state.session.streak);
+
+    // 关键修复：将得分加到总分中
+    state.session.score += earnedPoints;
 
     const wasPerfect = state.session.currentMistakes === 0;
 
@@ -234,7 +258,8 @@ function handleWordComplete(item) {
         mistakes: state.session.currentMistakes,
         score: earnedPoints,
         perfect: wasPerfect,
-        streak: state.session.streak
+        streak: state.session.streak,
+        totalScore: state.session.score
     });
 
     logger.info('WORD_COMPLETED', {
@@ -243,6 +268,7 @@ function handleWordComplete(item) {
         timeSec: timeSec,
         mistakes: state.session.currentMistakes,
         score: earnedPoints,
+        totalScore: state.session.score,
         perfect: wasPerfect,
         streak: state.session.streak
     });
@@ -263,6 +289,8 @@ function handleWordComplete(item) {
         state.session.currentInputIndex = 0;
         state.session.currentMistakes = 0;
         state.session.currentWordStartTime = Date.now();
+        // 重置用户输入
+        state.session.userInputs = {};
 
         const fb = document.getElementById('feedback-layer');
         if (fb) {
