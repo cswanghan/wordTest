@@ -224,22 +224,30 @@ function handleWordComplete(item) {
 
     const wasPerfect = state.session.currentMistakes === 0;
 
-    if (wasPerfect) {
-        state.session.correctCount++;
+    // 逻辑调整：只要拼完单词，Streak 就延续！
+    // 只有当错误次数非常多（例如超过3次）时，才视为"勉强完成"，中断 Streak
+    if (state.session.currentMistakes <= 3) {
         state.session.streak++;
         if (state.session.streak > state.session.maxStreak) {
             state.session.maxStreak = state.session.streak;
         }
-        // Perfect 庆祝特效（小爆发）
+    } else {
+        // 错误太多，连击中断
+        state.session.streak = 0;
+    }
+
+    if (wasPerfect) {
+        state.session.correctCount++;
+        // Perfect 庆祝特效（金色大爆发）
         confetti({
-            particleCount: 40,
+            particleCount: 50,
             spread: 70,
             origin: { y: 0.6 },
             colors: ['#f59e0b', '#fbbf24', '#ffffff']
         });
     } else {
-        state.session.wrongCount++;
-        state.session.streak = 0;
+        // 非完美但完成了，给予小小鼓励（蓝色小礼花），或者不给特效
+        state.session.wrongCount++; // 这里的 wrongCount 定义可能需要重新考虑，但暂且保留作为"非完美计数"
     }
 
     // 记录题目完成

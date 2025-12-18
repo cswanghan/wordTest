@@ -144,7 +144,9 @@ function calculateScore(item, timeSec, mistakes, streak) {
     // Streak 6-9: 1.5x
     // Streak 10+: 2.0x
     let streakMultiplier = 1.0;
-    if (mistakes === 0) {
+    
+    // 宽容模式：允许少量错误依然享受 Streak 加成
+    if (mistakes <= 1) {
         // 注意：这里的 streak 是"本题之前的连击数"，本题算对后是 streak+1
         const effectiveStreak = streak + 1;
         if (effectiveStreak >= 10) streakMultiplier = 2.0;
