@@ -20,9 +20,9 @@
   - [x] Show detailed score breakdown in the Summary view.
 
 ## Phase 3: 长期留存 (Meta & Progression)
-- [ ] **Task 3.1: 数据持久化 (Persistence)**
-  - [ ] Expand `User` model in `auth.js` to store `coins` and `unlockedItems`.
-  - [ ] Persist `maxStreak` to global stats.
-- [ ] **Task 3.2: 奖励系统 (Rewards)**
-  - [ ] Create a simple "Theme Store" or "Badge" UI.
-  - [ ] Implement unlocking logic based on coin balance.
+- [x] **Task 3.1: 数据持久化 (Persistence)**
+  - [x] Expand `User` model in `auth.js` to store `coins` and `unlockedItems`.
+  - [x] Persist `maxStreak` to global stats.
+- [x] **Task 3.2: 奖励系统 (Rewards)**
+  - [x] Create a simple "Theme Store" or "Badge" UI.
+  - [x] Implement unlocking logic based on coin balance.

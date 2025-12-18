@@ -54,18 +54,24 @@ function login(username, password) {
             lastLoginAt: Date.now(),
             totalSessions: 0,
             totalScore: 0,
+            coins: 0, // 初始化金币
             totalWords: 0,
             totalTime: 0,
             avgAccuracy: 0,
             maxStreak: 0,
             preferredGroups: [],
-            preferredDifficulty: 'standard'
+            preferredDifficulty: 'standard',
+            unlockedItems: ['theme_default'] // 初始化解锁物品
         };
         saveUserData(username, newUser);
         currentUser = newUser;
     } else {
         // 老用户，更新登录时间
         userData.lastLoginAt = Date.now();
+        // 确保 coins 字段存在（兼容旧数据）
+        if (userData.coins === undefined) userData.coins = 0;
+        if (userData.unlockedItems === undefined) userData.unlockedItems = ['theme_default'];
+        
         saveUserData(username, userData);
         currentUser = userData;
     }
@@ -133,6 +139,11 @@ function updateUserStats(sessionData) {
     // 更新统计数据
     userData.totalSessions += 1;
     userData.totalScore += sessionData.totalScore || 0;
+    
+    // 金币转化逻辑：每10分转化1金币
+    const earnedCoins = Math.floor((sessionData.totalScore || 0) / 10);
+    userData.coins = (userData.coins || 0) + earnedCoins;
+    
     userData.totalWords += sessionData.totalWords || 0;
     userData.totalTime += sessionData.totalTime || 0;
     userData.maxStreak = Math.max(userData.maxStreak || 0, sessionData.maxStreak || 0);
@@ -159,6 +170,41 @@ function updateUserStats(sessionData) {
     saveUserData(currentUser.username, userData);
     currentUser = userData;
     localStorage.setItem('wordtest_current_user', JSON.stringify(userData));
+}
+
+/**
+ * 购买物品
+ * @param {string} itemId - 物品ID
+ * @param {number} cost - 花费
+ * @returns {Object} 结果 { success, message }
+ */
+function purchaseItem(itemId, cost) {
+    if (!currentUser) return { success: false, message: '未登录' };
+    
+    const userData = getUserData(currentUser.username);
+    if (!userData) return { success: false, message: '用户数据错误' };
+
+    // 检查是否已拥有
+    if (userData.unlockedItems && userData.unlockedItems.includes(itemId)) {
+        return { success: false, message: '已拥有该物品' };
+    }
+
+    // 检查余额
+    if ((userData.coins || 0) < cost) {
+        return { success: false, message: '金币不足' };
+    }
+
+    // 扣费并添加物品
+    userData.coins -= cost;
+    if (!userData.unlockedItems) userData.unlockedItems = [];
+    userData.unlockedItems.push(itemId);
+
+    saveUserData(currentUser.username, userData);
+    currentUser = userData;
+    localStorage.setItem('wordtest_current_user', JSON.stringify(userData));
+    
+    logger.info('ITEM_PURCHASED', { username: currentUser.username, itemId, cost });
+    return { success: true, message: '购买成功！' };
 }
 
 /**

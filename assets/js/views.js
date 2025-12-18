@@ -137,6 +137,12 @@ function renderUserDashboard() {
                             <div class="text-xs font-bold text-gray-400 uppercase mb-1">总得分</div>
                             <div class="text-3xl font-black text-blue-600">${stats.totalScore}</div>
                         </div>
+                        <div class="bg-yellow-50 p-4 rounded-xl">
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-1">金币余额</div>
+                            <div class="text-3xl font-black text-amber-600 flex items-center gap-2">
+                                <span>💰</span> ${currentUser.coins || 0}
+                            </div>
+                        </div>
                         <div class="bg-purple-50 p-4 rounded-xl">
                             <div class="text-xs font-bold text-gray-400 uppercase mb-1">平均准确率</div>
                             <div class="text-3xl font-black text-purple-600">${stats.avgAccuracy}%</div>
@@ -183,6 +189,9 @@ function renderUserDashboard() {
                         <button onclick="exportUserData()" class="w-full mt-3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition">
                             📊 导出我的数据
                         </button>
+                        <button onclick="renderStore()" class="w-full mt-3 bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-purple-200">
+                            🛒 访问商店 (Store)
+                        </button>
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-lg p-6">
@@ -198,6 +207,93 @@ function renderUserDashboard() {
             </div>
         </div>
     `;
+}
+
+/**
+ * 渲染商店页
+ */
+function renderStore() {
+    state.view = 'store';
+    analytics.trackPageView('store');
+
+    const products = [
+        { id: 'theme_dark', name: '🌙 夜间模式', desc: '护眼深色主题', price: 200, icon: '🌑' },
+        { id: 'theme_lion', name: '🧧 舞狮限定', desc: '红火过大年主题', price: 500, icon: '🦁' }
+    ];
+
+    const userItems = currentUser.unlockedItems || [];
+
+    const productHtml = products.map(p => {
+        const isOwned = userItems.includes(p.id);
+        const canAfford = (currentUser.coins || 0) >= p.price;
+        
+        let btnHtml = '';
+        if (isOwned) {
+            btnHtml = `<button disabled class="w-full bg-gray-100 text-gray-400 font-bold py-3 rounded-xl cursor-not-allowed">已拥有</button>`;
+        } else if (canAfford) {
+            btnHtml = `<button onclick="handlePurchase('${p.id}', ${p.price})" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg transition transform hover:scale-105">购买 (${p.price} 💰)</button>`;
+        } else {
+            btnHtml = `<button disabled class="w-full bg-gray-200 text-gray-400 font-bold py-3 rounded-xl cursor-not-allowed">金币不足 (${p.price} 💰)</button>`;
+        }
+
+        return `
+            <div class="bg-white p-6 rounded-2xl shadow-lg border-2 border-gray-100 flex flex-col items-center text-center">
+                <div class="text-6xl mb-4">${p.icon}</div>
+                <h3 class="text-xl font-black text-gray-800 mb-1">${p.name}</h3>
+                <p class="text-sm text-gray-500 mb-6">${p.desc}</p>
+                <div class="mt-auto w-full">
+                    ${btnHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    app.innerHTML = `
+        <div class="min-h-screen bg-gray-50 p-4 fade-in">
+            <div class="max-w-4xl mx-auto">
+                <!-- 顶部栏 -->
+                <div class="bg-white rounded-2xl shadow-lg p-4 mb-6 flex justify-between items-center sticky top-4 z-20">
+                    <button onclick="renderUserDashboard()" class="text-gray-500 hover:text-gray-800 font-bold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        返回
+                    </button>
+                    <h1 class="text-2xl font-black text-amber-600">🦁 积分商店</h1>
+                    <div class="flex items-center gap-2 bg-amber-100 px-4 py-2 rounded-xl border border-amber-200">
+                        <span class="text-xl">💰</span>
+                        <span class="font-black text-amber-600 text-xl">${currentUser.coins || 0}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    ${productHtml}
+                </div>
+                
+                <div class="mt-8 text-center text-gray-400 text-sm">
+                    <p>更多商品敬请期待...</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 处理购买操作
+ */
+function handlePurchase(id, price) {
+    if (confirm(`确定花费 ${price} 金币购买吗？`)) {
+        const result = purchaseItem(id, price);
+        if (result.success) {
+            alert('购买成功！🎉');
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+            renderStore(); // 刷新界面
+        } else {
+            alert(result.message);
+        }
+    }
 }
 
 /**
@@ -320,6 +416,10 @@ function renderHome() {
         <div class="min-h-screen flex flex-col items-center justify-center p-4 fade-in">
             <!-- 用户信息栏 -->
             <div class="absolute top-4 right-4 bg-white rounded-xl shadow-lg p-3 flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-amber-100 px-3 py-1 rounded-lg mr-2 border border-amber-200">
+                    <span class="text-xl">💰</span>
+                    <span class="font-black text-amber-600">${currentUser.coins || 0}</span>
+                </div>
                 <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                     ${currentUser.username.charAt(0).toUpperCase()}
                 </div>
