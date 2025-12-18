@@ -23,6 +23,8 @@ const state = {
         correctCount: 0,
         wrongCount: 0,
         currentMistakes: 0,
+        totalMistakes: 0, // 新增：总错误按键数
+        totalCorrectKeys: 0, // 新增：总正确按键数
         startTime: 0,
         currentWordStartTime: 0,
         currentInputIndex: 0 // 指向 blankIndices 的索引
@@ -182,6 +184,7 @@ function handleKeyInput(key) {
     const isCorrect = key.toLowerCase() === correctChar.toLowerCase();
 
     if (isCorrect) {
+        state.session.totalCorrectKeys++; // 记录正确按键
         state.session.currentInputIndex++;
         if (state.session.currentInputIndex >= item.blankIndices.length) {
             handleWordComplete(item);
@@ -191,6 +194,7 @@ function handleKeyInput(key) {
     } else {
         // 输入错误
         state.session.currentMistakes++;
+        state.session.totalMistakes++; // 记录错误按键
         const container = document.getElementById('word-container');
         if (container) {
             container.classList.remove('shake');

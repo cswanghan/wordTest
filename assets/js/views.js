@@ -804,8 +804,12 @@ function updateOnlineUI() {
  */
 function renderResult() {
     state.view = 'result';
-    const { score, correctCount, wrongCount, items, maxStreak } = state.session;
-    const wrongRate = items.length > 0 ? Math.round((wrongCount / items.length) * 100) : 0;
+    const { score, correctCount, wrongCount, items, maxStreak, totalMistakes, totalCorrectKeys } = state.session;
+    
+    // 计算按键准确率
+    const totalKeys = (totalCorrectKeys || 0) + (totalMistakes || 0);
+    const accuracy = totalKeys > 0 ? Math.round((totalCorrectKeys / totalKeys) * 100) : 0;
+    
     const timeSpent = Math.floor((Date.now() - state.session.startTime) / 1000);
     const minutes = Math.floor(timeSpent / 60);
     const seconds = timeSpent % 60;
@@ -826,7 +830,7 @@ function renderResult() {
                     </div>
                     <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Accuracy</div>
-                        <div class="text-4xl font-black text-blue-600">${100 - wrongRate}%</div>
+                        <div class="text-4xl font-black text-blue-600">${accuracy}%</div>
                     </div>
                     <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Max Streak</div>
