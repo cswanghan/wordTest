@@ -688,6 +688,20 @@ function updateOnlineUI() {
         streakEl.classList.remove('opacity-0', 'scale-50');
         streakEl.classList.add('opacity-100', 'scale-100');
         streakCountEl.textContent = state.session.streak;
+
+        // 动态样式：根据连击数改变颜色
+        const streakBg = streakEl.querySelector('div');
+        if (state.session.streak >= 10) {
+            streakBg.className = "bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce ring-4 ring-purple-200";
+            streakCountEl.innerHTML = `${state.session.streak} 🔥`; // Add fire emoji for high streaks
+        } else if (state.session.streak >= 5) {
+            streakBg.className = "bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce ring-2 ring-red-200";
+             streakCountEl.innerHTML = state.session.streak;
+        } else {
+            streakBg.className = "bg-gradient-to-r from-orange-400 to-amber-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce";
+             streakCountEl.innerHTML = state.session.streak;
+        }
+
     } else {
         streakEl.classList.add('opacity-0', 'scale-50');
         streakEl.classList.remove('opacity-100', 'scale-100');

@@ -11,13 +11,13 @@
   - [x] Trigger effects in `main.js` based on input validation.
 
 ## Phase 2: 核心玩法 (Core Gameplay Loop)
-- [ ] **Task 2.1: 连击系统 (Combo Streak)**
-  - [ ] Update `state` in `main.js` to track `currentStreak` and `maxStreak`.
-  - [ ] Update `views.js` to display a dynamic Combo counter.
-  - [ ] Reset streak on error; increment on success.
-- [ ] **Task 2.2: 计分升级 (Scoring V2)**
-  - [ ] Refactor `calculateScore` in `utils.js` to include streak multipliers.
-  - [ ] Show detailed score breakdown in the Summary view.
+- [x] **Task 2.1: 连击系统 (Combo Streak)**
+  - [x] Update `state` in `main.js` to track `currentStreak` and `maxStreak`.
+  - [x] Update `views.js` to display a dynamic Combo counter.
+  - [x] Reset streak on error; increment on success.
+- [x] **Task 2.2: 计分升级 (Scoring V2)**
+  - [x] Refactor `calculateScore` in `utils.js` to include streak multipliers.
+  - [x] Show detailed score breakdown in the Summary view.
 
 ## Phase 3: 长期留存 (Meta & Progression)
 - [ ] **Task 3.1: 数据持久化 (Persistence)**

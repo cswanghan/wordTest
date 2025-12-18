@@ -108,38 +108,64 @@ function generateDrillItem(wordObj, rng, difficulty) {
 }
 
 /**
- * 计算单题得分
+ * 计算单题得分 (V2 with tiered streak multiplier)
  * @param {Object} item - 练习项
  * @param {number} timeSec - 用时（秒）
  * @param {number} mistakes - 错误次数
- * @param {number} streak - 当前连击数
- * @returns {number} 得分
+ * @param {number} streak - 当前连击数 (不包含本题)
+ * @returns {Object} 得分详情 { total, base, timeBonus, streakBonus, streakMultiplier, penalty }
  */
 function calculateScore(item, timeSec, mistakes, streak) {
     const L = item.targetToken.length;
     const B = item.blankIndices.length;
     const P = item.en.includes(' ') ? 1 : 0;
 
-    // 基础分（难度分）
-    let base = Math.round(Math.max(10, 8 * B + 0.6 * L + 3 * P));
+    // 1. 基础分 (Base Score)
+    // 基于挖空数量和单词长度
+    let base = Math.round(Math.max(10, 10 * B + L));
 
-    // 错误惩罚
-    const penalty = 2 * mistakes;
+    // 2. 错误惩罚 (Penalty)
+    const penalty = 5 * mistakes;
 
-    // 速度奖励（最高+30%）
-    const parTime = 1.2 * B + 0.15 * L + 0.8 * P;
-    const speedRatio = Math.max(0, Math.min(0.3, (parTime - timeSec) / parTime));
-    const timeBonus = Math.round(base * speedRatio);
-
-    // 连击加成（最高+25%，仅perfect生效）
-    let streakBonus = 0;
-    if (mistakes === 0) {
-        streakBonus = Math.round(base * Math.min(0.05 * streak, 0.25));
+    // 3. 速度奖励 (Time Bonus)
+    // 设定“标准时间”：每个空1.5秒 + 单词长度0.2秒
+    const parTime = 1.5 * B + 0.2 * L + 1.0;
+    let timeBonus = 0;
+    if (timeSec < parTime && mistakes === 0) {
+        // 只有全对才有速度奖励，最高 +20%
+        const ratio = Math.min(1, (parTime - timeSec) / parTime);
+        timeBonus = Math.round(base * 0.2 * ratio);
     }
 
-    // 最终得分
-    const wordScore = Math.max(0, base + timeBonus + streakBonus - penalty);
-    return wordScore;
+    // 4. 连击加成 (Streak Bonus)
+    // 阶梯式倍率：
+    // Streak 0-2: 1.0x (无加成)
+    // Streak 3-5: 1.2x
+    // Streak 6-9: 1.5x
+    // Streak 10+: 2.0x
+    let streakMultiplier = 1.0;
+    if (mistakes === 0) {
+        // 注意：这里的 streak 是"本题之前的连击数"，本题算对后是 streak+1
+        const effectiveStreak = streak + 1;
+        if (effectiveStreak >= 10) streakMultiplier = 2.0;
+        else if (effectiveStreak >= 6) streakMultiplier = 1.5;
+        else if (effectiveStreak >= 3) streakMultiplier = 1.2;
+    }
+
+    // 计算总分
+    // 公式: (基础分 + 速度分) * 连击倍率 - 惩罚
+    let rawTotal = (base + timeBonus) * streakMultiplier - penalty;
+    const total = Math.max(0, Math.round(rawTotal));
+    const streakBonusPoints = Math.round((base + timeBonus) * (streakMultiplier - 1.0));
+
+    return {
+        total,
+        base,
+        timeBonus,
+        streakBonus: streakBonusPoints,
+        streakMultiplier,
+        penalty
+    };
 }
 
 /**

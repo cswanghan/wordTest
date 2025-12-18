@@ -217,10 +217,10 @@ function handleWordComplete(item) {
     const endTime = Date.now();
     const timeSec = (endTime - state.session.currentWordStartTime) / 1000;
 
-    const earnedPoints = calculateScore(item, timeSec, state.session.currentMistakes, state.session.streak);
+    // calculateScore returns an object now: { total, base, timeBonus, streakBonus, streakMultiplier, penalty }
+    const scoreResult = calculateScore(item, timeSec, state.session.currentMistakes, state.session.streak);
 
-    // 关键修复：将得分加到总分中
-    state.session.score += earnedPoints;
+    state.session.score += scoreResult.total;
 
     const wasPerfect = state.session.currentMistakes === 0;
 
@@ -248,7 +248,8 @@ function handleWordComplete(item) {
         word: item.en,
         timeSec: timeSec,
         mistakes: state.session.currentMistakes,
-        score: earnedPoints,
+        score: scoreResult.total,
+        scoreDetails: scoreResult,
         perfect: wasPerfect,
         streak: state.session.streak,
         totalScore: state.session.score
@@ -259,7 +260,7 @@ function handleWordComplete(item) {
         word: item.en,
         timeSec: timeSec,
         mistakes: state.session.currentMistakes,
-        score: earnedPoints,
+        score: scoreResult.total,
         totalScore: state.session.score,
         perfect: wasPerfect,
         streak: state.session.streak
@@ -270,7 +271,19 @@ function handleWordComplete(item) {
     // 显示得分反馈
     const fb = document.getElementById('feedback-layer');
     if (fb) {
-        fb.textContent = `+${earnedPoints}`;
+        let feedbackText = `+${scoreResult.total}`;
+        
+        // 如果有连击加成，显示倍率
+        if (scoreResult.streakMultiplier > 1.0) {
+            feedbackText += ` (Combo x${scoreResult.streakMultiplier.toFixed(1)})`;
+            fb.classList.add('text-purple-500'); // 连击时变成紫色
+            fb.classList.remove('text-amber-500');
+        } else {
+            fb.classList.add('text-amber-500');
+            fb.classList.remove('text-purple-500');
+        }
+
+        fb.textContent = feedbackText;
         fb.style.opacity = 1;
         fb.style.transform = 'translateY(-50px)';
     }
@@ -295,7 +308,7 @@ function handleWordComplete(item) {
         if (nextItem) {
             speakWord(nextItem.en);
         }
-    }, 800);
+    }, 1200); // 稍微延长等待时间，让用户看清得分细节
 }
 
 // 键盘事件监听
