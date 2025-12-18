@@ -601,10 +601,17 @@ function renderOnline(items) {
                 </div>
 
                 <!-- 中文提示 -->
-                <div id="cn-hint-container" class="transition-all duration-500 opacity-0 translate-y-4 w-full px-4 flex justify-center">
+                <div id="cn-hint-container" class="transition-all duration-500 opacity-0 translate-y-4 w-full px-4 flex flex-col items-center gap-4">
                     <div id="cn-hint-text" class="text-lg sm:text-2xl text-gray-600 font-bold bg-white px-6 sm:px-8 py-2 sm:py-3 rounded-2xl shadow-sm border border-gray-100 max-w-md text-center">
                         ...
                     </div>
+                    <!-- 朗读按钮 -->
+                    <button onclick="speakWord(state.session.items[state.session.currentIndex].en)" class="flex items-center gap-2 bg-white hover:bg-amber-50 text-amber-600 px-4 py-2 rounded-xl border border-amber-200 shadow-sm transition-all transform active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        </svg>
+                        <span class="font-bold">Listen</span>
+                    </button>
                 </div>
 
                 <!-- 得分反馈浮层 -->

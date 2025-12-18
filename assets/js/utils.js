@@ -141,3 +141,25 @@ function calculateScore(item, timeSec, mistakes, streak) {
     const wordScore = Math.max(0, base + timeBonus + streakBonus - penalty);
     return wordScore;
 }
+
+/**
+ * 单词语音朗读
+ * @param {string} text - 要朗读的文本
+ * @param {string} lang - 语言 (默认 en-US)
+ */
+function speakWord(text, lang = 'en-US') {
+    if (!('speechSynthesis' in window)) {
+        console.warn('当前浏览器不支持语音合成');
+        return;
+    }
+
+    // 取消当前正在进行的朗读
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 0.9; // 语速稍微慢一点点，方便听清
+    utterance.pitch = 1.0;
+    
+    window.speechSynthesis.speak(utterance);
+}

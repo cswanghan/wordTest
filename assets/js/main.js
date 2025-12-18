@@ -140,6 +140,10 @@ function goToOnline() {
     });
 
     renderOnline(items);
+    // 自动朗读第一个词
+    if (items.length > 0) {
+        speakWord(items[0].en);
+    }
 }
 
 /**
@@ -226,6 +230,13 @@ function handleWordComplete(item) {
         if (state.session.streak > state.session.maxStreak) {
             state.session.maxStreak = state.session.streak;
         }
+        // Perfect 庆祝特效（小爆发）
+        confetti({
+            particleCount: 40,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#f59e0b', '#fbbf24', '#ffffff']
+        });
     } else {
         state.session.wrongCount++;
         state.session.streak = 0;
@@ -278,6 +289,12 @@ function handleWordComplete(item) {
         }
 
         updateOnlineUI();
+
+        // 自动朗读下一个词
+        const nextItem = state.session.items[state.session.currentIndex];
+        if (nextItem) {
+            speakWord(nextItem.en);
+        }
     }, 800);
 }
 
