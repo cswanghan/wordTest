@@ -705,8 +705,8 @@ function updateOnlineUI() {
     // Debug: 打印连击状态
     console.log(`[UI] Updating streak: ${state.session.streak}`);
 
-    if (state.session.streak > 1) {
-        streakEl.style.display = 'flex'; // 强制显示
+    if (state.session.streak >= 1) { // 修改为 >= 1，让第一个完美单词就有反馈
+        streakEl.style.display = 'flex';
         streakEl.style.opacity = '1';
         streakEl.style.transform = 'translate(-50%, 0) scale(1)';
         
