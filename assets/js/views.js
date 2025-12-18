@@ -606,8 +606,8 @@ function renderOnline(items) {
             <div class="flex-1 flex flex-col items-center justify-center relative p-2 sm:p-4 overflow-hidden">
 
                 <!-- 连击提示 -->
-                <div id="streak-container" class="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 scale-50 z-30 w-full flex justify-center">
-                    <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-full font-black text-xl shadow-2xl animate-bounce border-2 border-white/50">
+                <div id="streak-container" style="display: none;" class="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 pointer-events-none z-30 w-full justify-center transition-all duration-300">
+                    <div class="bg-gradient-to-r from-orange-400 to-amber-500 text-white px-6 py-2 rounded-full font-black text-xl shadow-2xl border-2 border-white">
                         🔥 <span id="streak-count">0</span> COMBO!
                     </div>
                 </div>
@@ -701,27 +701,33 @@ function updateOnlineUI() {
     // 更新连击
     const streakEl = document.getElementById('streak-container');
     const streakCountEl = document.getElementById('streak-count');
+    
+    // Debug: 打印连击状态
+    console.log(`[UI] Updating streak: ${state.session.streak}`);
+
     if (state.session.streak > 1) {
-        streakEl.classList.remove('opacity-0', 'scale-50');
-        streakEl.classList.add('opacity-100', 'scale-100');
+        streakEl.style.display = 'flex'; // 强制显示
+        streakEl.style.opacity = '1';
+        streakEl.style.transform = 'translate(-50%, 0) scale(1)';
+        
         streakCountEl.textContent = state.session.streak;
 
         // 动态样式：根据连击数改变颜色
         const streakBg = streakEl.querySelector('div');
         if (state.session.streak >= 10) {
-            streakBg.className = "bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce ring-4 ring-purple-200";
-            streakCountEl.innerHTML = `${state.session.streak} 🔥`; // Add fire emoji for high streaks
+            streakBg.className = "bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-full font-black text-xl shadow-2xl animate-bounce ring-4 ring-purple-200 border-2 border-white";
+            streakCountEl.innerHTML = `${state.session.streak} 🔥`; 
         } else if (state.session.streak >= 5) {
-            streakBg.className = "bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce ring-2 ring-red-200";
+            streakBg.className = "bg-gradient-to-r from-red-500 to-orange-500 text-white px-6 py-2 rounded-full font-black text-xl shadow-2xl animate-bounce ring-2 ring-red-200 border-2 border-white";
              streakCountEl.innerHTML = state.session.streak;
         } else {
-            streakBg.className = "bg-gradient-to-r from-orange-400 to-amber-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce";
+            streakBg.className = "bg-gradient-to-r from-orange-400 to-amber-500 text-white px-6 py-2 rounded-full font-black text-xl shadow-2xl animate-bounce border-2 border-white";
              streakCountEl.innerHTML = state.session.streak;
         }
 
     } else {
-        streakEl.classList.add('opacity-0', 'scale-50');
-        streakEl.classList.remove('opacity-100', 'scale-100');
+        streakEl.style.display = 'none'; // 强制隐藏
+        streakEl.style.opacity = '0';
     }
 
     // 更新中文提示
