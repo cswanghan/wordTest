@@ -4,11 +4,27 @@
  */
 
 const app = document.getElementById('app');
+const APP_VERSION = 'v1.2.0 (Phase 2)';
+
+/**
+ * 渲染版本号
+ */
+function renderVersion() {
+    let el = document.getElementById('app-version');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'app-version';
+        el.className = 'fixed top-1 left-1 z-50 text-[10px] text-gray-300 font-mono pointer-events-none mix-blend-multiply select-none';
+        document.body.appendChild(el);
+    }
+    el.textContent = APP_VERSION;
+}
 
 /**
  * 渲染登录页
  */
 function renderLogin() {
+    renderVersion();
     state.view = 'login';
     analytics.trackPageView('login');
 
@@ -289,6 +305,7 @@ function clearAllUserData() {
  * 渲染首页
  */
 function renderHome() {
+    renderVersion();
     if (!currentUser) {
         renderLogin();
         return;
@@ -589,8 +606,8 @@ function renderOnline(items) {
             <div class="flex-1 flex flex-col items-center justify-center relative p-2 sm:p-4 overflow-hidden">
 
                 <!-- 连击提示 -->
-                <div id="streak-container" class="absolute top-4 sm:top-10 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 scale-50 z-10">
-                    <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-full font-black text-base sm:text-lg shadow-lg animate-bounce">
+                <div id="streak-container" class="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 pointer-events-none transition-all duration-300 opacity-0 scale-50 z-30 w-full flex justify-center">
+                    <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-2 rounded-full font-black text-xl shadow-2xl animate-bounce border-2 border-white/50">
                         🔥 <span id="streak-count">0</span> COMBO!
                     </div>
                 </div>
