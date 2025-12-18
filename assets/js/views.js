@@ -400,42 +400,81 @@ function renderHome() {
 function renderPrintSettings() {
     state.view = 'printSettings';
     app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50 fade-in">
-            <div class="max-w-md w-full">
-                <button onclick="renderHome()" class="text-gray-400 hover:text-amber-600 font-bold mb-6 flex items-center gap-1 transition-colors">
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-amber-50 fade-in">
+            <!-- 顶部导航 -->
+            <div class="absolute top-4 left-4 z-10">
+                <button onclick="renderHome()" class="bg-white/80 hover:bg-white text-gray-500 hover:text-amber-600 font-bold px-4 py-2 rounded-xl shadow-sm border border-amber-100 flex items-center gap-2 transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
-                    返回
+                    <span>Back</span>
                 </button>
+            </div>
 
-                <div class="bg-white p-8 rounded-2xl shadow-lg border-t-8 border-amber-500">
-                    <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-                        <span>🖨️</span> 打印设置
-                    </h2>
-
-                    <div class="space-y-4 mb-8">
-                        <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                            <span class="font-bold text-gray-700">显示中文释义</span>
-                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                <input type="checkbox" checked onchange="state.settings.showCN = this.checked" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 ease-in-out right-6 border-gray-300 checked:right-0 checked:border-amber-500"/>
-                                <div class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300 ease-in-out"></div>
-                            </div>
-                        </label>
-
-                        <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                            <span class="font-bold text-gray-700">随机打乱顺序</span>
-                            <input type="checkbox" onchange="state.settings.shuffle = this.checked" class="w-6 h-6 text-amber-600 rounded focus:ring-amber-500">
-                        </label>
-
-                        <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
-                            <span class="font-bold text-gray-700">附带答案页</span>
-                            <input type="checkbox" onchange="state.settings.showAnswers = this.checked" class="w-6 h-6 text-amber-600 rounded focus:ring-amber-500">
-                        </label>
-                    </div>
-
-                    <button onclick="generateAndPreviewPrint()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition-all transform active:scale-95">
-                        生成 A4 预览
-                    </button>
+            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border-4 border-amber-100 relative overflow-hidden">
+                <!-- 装饰背景 -->
+                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-amber-100 rounded-full opacity-50 pointer-events-none"></div>
+                
+                <div class="text-center mb-8 relative z-10">
+                    <span class="text-5xl block mb-2">🖨️</span>
+                    <h2 class="text-3xl font-black text-gray-800">Print Settings</h2>
+                    <p class="text-gray-400 font-bold text-sm">Customize your worksheet</p>
                 </div>
+
+                <div class="space-y-4 mb-8 relative z-10">
+                    <!-- 选项：中文释义 -->
+                    <label class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl cursor-pointer hover:bg-amber-50 transition border-2 border-transparent hover:border-amber-200 group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center">
+                                <span class="font-bold text-lg">CN</span>
+                            </div>
+                            <div>
+                                <span class="block font-bold text-gray-700 group-hover:text-amber-700">Show Meaning</span>
+                                <span class="text-xs text-gray-400">显示中文释义</span>
+                            </div>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" checked onchange="state.settings.showCN = this.checked" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 ease-in-out right-6 border-gray-300 checked:right-0 checked:border-amber-500"/>
+                            <div class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300 ease-in-out"></div>
+                        </div>
+                    </label>
+
+                    <!-- 选项：随机乱序 -->
+                    <label class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl cursor-pointer hover:bg-amber-50 transition border-2 border-transparent hover:border-amber-200 group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-500 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            </div>
+                            <div>
+                                <span class="block font-bold text-gray-700 group-hover:text-amber-700">Shuffle</span>
+                                <span class="text-xs text-gray-400">随机打乱顺序</span>
+                            </div>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" onchange="state.settings.shuffle = this.checked" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 ease-in-out right-6 border-gray-300 checked:right-0 checked:border-amber-500"/>
+                            <div class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300 ease-in-out"></div>
+                        </div>
+                    </label>
+
+                    <!-- 选项：附带答案 -->
+                    <label class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl cursor-pointer hover:bg-amber-50 transition border-2 border-transparent hover:border-amber-200 group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <div>
+                                <span class="block font-bold text-gray-700 group-hover:text-amber-700">Answer Key</span>
+                                <span class="text-xs text-gray-400">附带答案页</span>
+                            </div>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                            <input type="checkbox" onchange="state.settings.showAnswers = this.checked" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 ease-in-out right-6 border-gray-300 checked:right-0 checked:border-amber-500"/>
+                            <div class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300 ease-in-out"></div>
+                        </div>
+                    </label>
+                </div>
+
+                <button onclick="generateAndPreviewPrint()" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-black py-4 rounded-2xl text-xl shadow-lg shadow-amber-200 transition-all transform hover:-translate-y-1 active:translate-y-0 relative z-10">
+                    生成预览 Generate
+                </button>
             </div>
         </div>
     `;
