@@ -16,7 +16,7 @@ function seededRandom(seed) {
 
     return function() {
         s = (a * s + c) % m;
-        return s / (m - 1);
+        return s / m;
     }
 }
 
