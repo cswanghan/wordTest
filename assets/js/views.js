@@ -284,11 +284,13 @@ function handlePurchase(id, price) {
         const result = purchaseItem(id, price);
         if (result.success) {
             alert('购买成功！🎉');
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
             renderStore(); // 刷新界面
         } else {
             alert(result.message);
@@ -993,13 +995,15 @@ function renderResult() {
     `;
 
     // 庆祝特效
-    const duration = 3000;
-    const end = Date.now() + duration;
-    (function frame() {
-        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
-        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
-        if (Date.now() < end) requestAnimationFrame(frame);
-    }());
+    if (typeof confetti === 'function') {
+        const duration = 3000;
+        const end = Date.now() + duration;
+        (function frame() {
+            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        }());
+    }
 }
 
 /**

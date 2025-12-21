@@ -210,6 +210,7 @@ function handleKeyInput(key) {
         state.session.totalMistakes++; // 记录错误按键
         
         // 记录详细错误指纹
+        if (!state.session.currentWordMistakes) state.session.currentWordMistakes = []; // 防御性初始化
         state.session.currentWordMistakes.push({
             position: state.session.currentInputIndex,
             expected: correctChar,
@@ -265,12 +266,14 @@ function handleWordComplete(item) {
     if (wasPerfect) {
         state.session.correctCount++;
         // Perfect 庆祝特效（金色大爆发）
-        confetti({
-            particleCount: 50,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#f59e0b', '#fbbf24', '#ffffff']
-        });
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 50,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#f59e0b', '#fbbf24', '#ffffff']
+            });
+        }
     } else {
         // 非完美但完成了，给予小小鼓励（蓝色小礼花），或者不给特效
         state.session.wrongCount++; // 这里的 wrongCount 定义可能需要重新考虑，但暂且保留作为"非完美计数"
@@ -290,6 +293,7 @@ function handleWordComplete(item) {
     });
 
     // 记录详细学习日志
+    if (!state.session.wordLogs) state.session.wordLogs = []; // 防御性初始化
     state.session.wordLogs.push({
         wordId: item.id,
         word: item.en,
