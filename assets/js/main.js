@@ -191,6 +191,9 @@ function handleKeyInput(key) {
         return;
     }
 
+    // DEBUG: Trace comparison details
+    console.log(`[KeyInput Check] Key:"${key}", Correct:"${correctChar}", targetIdx:${targetCharIdx}, currentInputIdx:${state.session.currentInputIndex}, Blanks:[${item.blankIndices}]`);
+
     // 检查输入是否正确
     const isCorrect = key.toLowerCase() === correctChar.toLowerCase();
     
@@ -241,124 +244,142 @@ function handleKeyInput(key) {
  * @param {Object} item - 完成的练习项
  */
 function handleWordComplete(item) {
-    const endTime = Date.now();
-    const timeSec = (endTime - state.session.currentWordStartTime) / 1000;
+    try {
+        const endTime = Date.now();
+        const timeSec = (endTime - state.session.currentWordStartTime) / 1000;
 
-    // calculateScore returns an object now: { total, base, timeBonus, streakBonus, streakMultiplier, penalty }
-    const scoreResult = calculateScore(item, timeSec, state.session.currentMistakes, state.session.streak);
-
-    state.session.score += scoreResult.total;
-
-    const wasPerfect = state.session.currentMistakes === 0;
-
-    // 逻辑调整：只要拼完单词，Streak 就延续！
-    // 只有当错误次数非常多（例如超过3次）时，才视为"勉强完成"，中断 Streak
-    if (state.session.currentMistakes <= 3) {
-        state.session.streak++;
-        if (state.session.streak > state.session.maxStreak) {
-            state.session.maxStreak = state.session.streak;
+        // calculateScore returns an object now: { total, base, timeBonus, streakBonus, streakMultiplier, penalty }
+        let scoreResult = { total: 0, base: 0, timeBonus: 0, streakBonus: 0, streakMultiplier: 1.0, penalty: 0 };
+        try {
+             scoreResult = calculateScore(item, timeSec, state.session.currentMistakes, state.session.streak);
+        } catch (e) {
+            console.error('Error calculating score:', e);
         }
-    } else {
-        // 错误太多，连击中断
-        state.session.streak = 0;
-    }
 
-    if (wasPerfect) {
-        state.session.correctCount++;
-        // Perfect 庆祝特效（金色大爆发）
-        if (typeof confetti === 'function') {
-            confetti({
-                particleCount: 50,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#f59e0b', '#fbbf24', '#ffffff']
-            });
-        }
-    } else {
-        // 非完美但完成了，给予小小鼓励（蓝色小礼花），或者不给特效
-        state.session.wrongCount++; // 这里的 wrongCount 定义可能需要重新考虑，但暂且保留作为"非完美计数"
-    }
+        state.session.score += scoreResult.total;
 
-    // 记录题目完成
-    analytics.trackWord({
-        wordId: item.id,
-        word: item.en,
-        timeSec: timeSec,
-        mistakes: state.session.currentMistakes,
-        score: scoreResult.total,
-        scoreDetails: scoreResult,
-        perfect: wasPerfect,
-        streak: state.session.streak,
-        totalScore: state.session.score
-    });
+        const wasPerfect = state.session.currentMistakes === 0;
 
-    // 记录详细学习日志
-    if (!state.session.wordLogs) state.session.wordLogs = []; // 防御性初始化
-    state.session.wordLogs.push({
-        wordId: item.id,
-        word: item.en,
-        startTime: state.session.currentWordStartTime,
-        endTime: endTime,
-        duration: Math.round(timeSec * 1000), // ms
-        mistakesCount: state.session.currentMistakes,
-        mistakesDetails: [...(state.session.currentWordMistakes || [])] // Copy array
-    });
-
-    logger.info('WORD_COMPLETED', {
-        wordId: item.id,
-        word: item.en,
-        timeSec: timeSec,
-        mistakes: state.session.currentMistakes,
-        score: scoreResult.total,
-        totalScore: state.session.score,
-        perfect: wasPerfect,
-        streak: state.session.streak
-    });
-
-    updateOnlineUI();
-
-    // 显示得分反馈
-    const fb = document.getElementById('feedback-layer');
-    if (fb) {
-        let feedbackText = `+${scoreResult.total}`;
-        
-        // 如果有连击加成，显示倍率
-        if (scoreResult.streakMultiplier > 1.0) {
-            feedbackText += ` (Combo x${scoreResult.streakMultiplier.toFixed(1)})`;
-            fb.classList.add('text-purple-500'); // 连击时变成紫色
-            fb.classList.remove('text-amber-500');
+        // 逻辑调整：只要拼完单词，Streak 就延续！
+        if (state.session.currentMistakes <= 3) {
+            state.session.streak++;
+            if (state.session.streak > state.session.maxStreak) {
+                state.session.maxStreak = state.session.streak;
+            }
         } else {
-            fb.classList.add('text-amber-500');
-            fb.classList.remove('text-purple-500');
+            state.session.streak = 0;
         }
 
-        fb.textContent = feedbackText;
-        fb.style.opacity = 1;
-        fb.style.transform = 'translateY(-50px)';
-    }
-
-    // 延迟进入下一题
-    setTimeout(() => {
-        state.session.currentIndex++;
-        state.session.currentInputIndex = 0;
-        state.session.currentMistakes = 0;
-        state.session.currentWordMistakes = []; // Reset mistake log for new word
-        state.session.currentWordStartTime = Date.now();
-
-        const fb = document.getElementById('feedback-layer');
-        if (fb) {
-            fb.style.opacity = 0;
-            fb.style.transform = 'translateY(0)';
+        if (wasPerfect) {
+            state.session.correctCount++;
+            // Perfect 庆祝特效
+            if (typeof confetti === 'function') {
+                try {
+                    confetti({
+                        particleCount: 50,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#f59e0b', '#fbbf24', '#ffffff']
+                    });
+                } catch(e) { console.warn('Confetti error:', e); }
+            }
+        } else {
+            state.session.wrongCount++;
         }
 
+        // 记录题目完成 (Safely)
+        try {
+            analytics.trackWord({
+                wordId: item.id,
+                word: item.en,
+                timeSec: timeSec,
+                mistakes: state.session.currentMistakes,
+                score: scoreResult.total,
+                scoreDetails: scoreResult,
+                perfect: wasPerfect,
+                streak: state.session.streak,
+                totalScore: state.session.score
+            });
+        } catch (e) { console.error('Analytics error:', e); }
+
+        // 记录详细学习日志 (Safely)
+        try {
+            if (!state.session.wordLogs) state.session.wordLogs = [];
+            state.session.wordLogs.push({
+                wordId: item.id,
+                word: item.en,
+                startTime: state.session.currentWordStartTime,
+                endTime: endTime,
+                duration: Math.round(timeSec * 1000), // ms
+                mistakesCount: state.session.currentMistakes,
+                mistakesDetails: [...(state.session.currentWordMistakes || [])]
+            });
+        } catch (e) { console.error('Logging error:', e); }
+        
+        try {
+            logger.info('WORD_COMPLETED', {
+                wordId: item.id,
+                word: item.en,
+                timeSec: timeSec,
+                mistakes: state.session.currentMistakes,
+                score: scoreResult.total,
+                totalScore: state.session.score,
+                perfect: wasPerfect,
+                streak: state.session.streak
+            });
+        } catch(e) { console.error('Logger error:', e); }
+
+        // UPDATE UI IMMEDIATELY
         updateOnlineUI();
 
-        // 自动朗读下一个词
-        const nextItem = state.session.items[state.session.currentIndex];
-        if (nextItem) {
-            speakWord(nextItem.en);
+        // 显示得分反馈
+        const fb = document.getElementById('feedback-layer');
+        if (fb) {
+            let feedbackText = `+${scoreResult.total}`;
+            if (scoreResult.streakMultiplier > 1.0) {
+                feedbackText += ` (Combo x${scoreResult.streakMultiplier.toFixed(1)})`;
+                fb.classList.add('text-purple-500');
+                fb.classList.remove('text-amber-500');
+            } else {
+                fb.classList.add('text-amber-500');
+                fb.classList.remove('text-purple-500');
+            }
+
+            fb.textContent = feedbackText;
+            fb.style.opacity = 1;
+            fb.style.transform = 'translateY(-50px)';
         }
-    }, 1200); // 稍微延长等待时间，让用户看清得分细节
+
+        // 延迟进入下一题
+        setTimeout(() => {
+            state.session.currentIndex++;
+            state.session.currentInputIndex = 0;
+            state.session.currentMistakes = 0;
+            state.session.currentWordMistakes = []; 
+            state.session.currentWordStartTime = Date.now();
+
+            const fb = document.getElementById('feedback-layer');
+            if (fb) {
+                fb.style.opacity = 0;
+                fb.style.transform = 'translateY(0)';
+            }
+
+            updateOnlineUI();
+
+            // 自动朗读下一个词
+            const nextItem = state.session.items[state.session.currentIndex];
+            if (nextItem) {
+                speakWord(nextItem.en);
+            }
+        }, 1200);
+
+    } catch (criticalError) {
+        console.error('CRITICAL ERROR in handleWordComplete:', criticalError);
+        // Fallback: Just try to move to next word immediately to unblock user
+        state.session.currentIndex++;
+        state.session.currentInputIndex = 0;
+        updateOnlineUI();
+    }
 }
 
 // 键盘事件监听
