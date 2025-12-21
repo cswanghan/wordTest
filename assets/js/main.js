@@ -159,6 +159,9 @@ function handleKeyInput(key) {
     const item = state.session.items[state.session.currentIndex];
     if (!item) return;
 
+    // DEBUG LOG
+    console.log(`[KeyInput] Key: "${key}", CurrentIdx: ${state.session.currentInputIndex}, Blanks: [${item.blankIndices}]`);
+
     // 处理退格键
     if (key === 'Backspace') {
         if (state.session.currentInputIndex > 0) {
@@ -177,13 +180,21 @@ function handleKeyInput(key) {
     if (state.session.currentInputIndex >= item.blankIndices.length) return;
 
     const targetCharIdx = item.blankIndices[state.session.currentInputIndex];
-    if (targetCharIdx === undefined) return;
+    if (targetCharIdx === undefined) {
+        console.error('[KeyInput] Error: targetCharIdx is undefined');
+        return;
+    }
 
     const correctChar = item.targetToken[targetCharIdx];
-    if (!correctChar) return;
+    if (!correctChar) {
+        console.error(`[KeyInput] Error: correctChar is undefined. Token: "${item.targetToken}", Idx: ${targetCharIdx}`);
+        return;
+    }
 
     // 检查输入是否正确
     const isCorrect = key.toLowerCase() === correctChar.toLowerCase();
+    
+    console.log(`[KeyInput] Expected: "${correctChar}", Actual: "${key}", Match: ${isCorrect}`);
 
     if (isCorrect) {
         state.session.totalCorrectKeys++; // 记录正确按键
