@@ -387,7 +387,7 @@ function handleWordComplete(item) {
             state.session.currentIndex++;
             state.session.currentInputIndex = 0;
             state.session.currentMistakes = 0;
-            state.session.currentWordMistakes = []; 
+            state.session.currentWordMistakes = [];
             state.session.currentWordStartTime = Date.now();
 
             const fb = document.getElementById('feedback-layer');
@@ -396,12 +396,15 @@ function handleWordComplete(item) {
                 fb.style.transform = 'translateY(0)';
             }
 
-            updateOnlineUI();
-
-            // 自动朗读下一个词
+            // 检查是否还有下一题
             const nextItem = state.session.items[state.session.currentIndex];
             if (nextItem) {
+                // 还有题目，继续练习
+                updateOnlineUI();
                 speakWord(nextItem.en);
+            } else {
+                // 没有下一题了，结束练习
+                finishSession();
             }
         }, 1200);
 
@@ -410,7 +413,14 @@ function handleWordComplete(item) {
         // Fallback: Just try to move to next word immediately to unblock user
         state.session.currentIndex++;
         state.session.currentInputIndex = 0;
-        updateOnlineUI();
+
+        // 检查是否还有下一题
+        const nextItem = state.session.items[state.session.currentIndex];
+        if (nextItem) {
+            updateOnlineUI();
+        } else {
+            finishSession();
+        }
     }
 }
 
