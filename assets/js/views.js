@@ -186,8 +186,8 @@ function renderUserDashboard() {
                         <button onclick="renderHome()" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-black py-4 rounded-xl text-lg shadow-lg transition-all transform hover:scale-105">
                             🏠 返回首页
                         </button>
-                        <button onclick="exportUserData()" class="w-full mt-3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition">
-                            📊 导出我的数据
+                        <button onclick="renderMemoryAnalysis()" class="w-full mt-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-purple-200">
+                            📈 记忆分析中心
                         </button>
                         <button onclick="renderStore()" class="w-full mt-3 bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-purple-200">
                             🛒 访问商店 (Store)
@@ -196,7 +196,10 @@ function renderUserDashboard() {
 
                     <div class="bg-white rounded-2xl shadow-lg p-6">
                         <h3 class="text-xl font-black text-gray-800 mb-4">数据管理</h3>
-                        <button onclick="viewLogs()" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition">
+                        <button onclick="exportUserData()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition">
+                            📊 导出我的数据
+                        </button>
+                        <button onclick="viewLogs()" class="w-full mt-3 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-xl transition">
                             📋 查看操作日志
                         </button>
                         <button onclick="if(confirm('确定要清除所有数据吗？此操作不可恢复！')) clearAllUserData()" class="w-full mt-3 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition">
@@ -790,14 +793,25 @@ function renderOnline(items) {
                 <!-- 移动端虚拟键盘 -->
                 <div class="sm:hidden grid grid-cols-10 gap-1 max-w-md mx-auto">
                     ${'QWERTYUIOP'.split('').concat(['']).concat('ASDFGHJKL'.split('')).concat(['']).concat('ZXCVBNM'.split('')).map(key => key ? `
-                        <button type="button" onclick="handleVirtualKey('${key}')" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg text-sm transition">
+                        <button type="button" data-virtual-key="${key}" class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-lg text-sm transition">
                             ${key}
                         </button>
                     ` : '<div></div>').join('')}
-                    <button type="button" onclick="handleVirtualKey('Backspace')" class="col-span-2 bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 font-bold py-2 px-3 rounded-lg text-xs transition">
+                    <button type="button" data-virtual-key="Backspace" class="col-span-2 bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 font-bold py-2 px-3 rounded-lg text-xs transition">
                         ⌫ 删除
                     </button>
                 </div>
+                <script>
+                    // 使用事件委托处理虚拟键盘，阻止mousedown默认行为避免触发input事件
+                    document.addEventListener('DOMContentLoaded', function() {
+                        document.body.addEventListener('mousedown', function(e) {
+                            if (e.target && e.target.dataset && e.target.dataset.virtualKey) {
+                                e.preventDefault();
+                                handleVirtualKey(e.target.dataset.virtualKey);
+                            }
+                        });
+                    });
+                </script>
             </div>
         </div>
     `;
@@ -806,7 +820,24 @@ function renderOnline(items) {
     const mobileInput = document.getElementById('mobile-input');
     if (mobileInput) {
         mobileInput.focus();
+
+        // 标记虚拟键盘正在处理输入，避免重复调用
+        let isVirtualKeyboardProcessing = false;
+
+        // 虚拟键盘输入标记方法
+        window.markVirtualKeyboardInput = function() {
+            isVirtualKeyboardProcessing = true;
+            setTimeout(() => {
+                isVirtualKeyboardProcessing = false;
+            }, 0);
+        };
+
         mobileInput.addEventListener('input', (e) => {
+            // 如果虚拟键盘正在处理输入，则跳过input事件（避免重复调用）
+            if (isVirtualKeyboardProcessing) {
+                return;
+            }
+
             const char = e.data;
             if (char) {
                 handleKeyInput(char);
@@ -947,50 +978,142 @@ function updateOnlineUI() {
  */
 function renderResult() {
     state.view = 'result';
-    const { score, correctCount, wrongCount, items, maxStreak, totalMistakes, totalCorrectKeys } = state.session;
-    
+    const { score, correctCount, wrongCount, items, maxStreak, totalMistakes, totalCorrectKeys, wordLogs } = state.session;
+
     // 计算按键准确率
     const totalKeys = (totalCorrectKeys || 0) + (totalMistakes || 0);
     const accuracy = totalKeys > 0 ? Math.round((totalCorrectKeys / totalKeys) * 100) : 0;
-    
+
     const timeSpent = Math.floor((Date.now() - state.session.startTime) / 1000);
     const minutes = Math.floor(timeSpent / 60);
     const seconds = timeSpent % 60;
 
+    // 分析本次练习数据
+    const analysis = analyzeSessionData(wordLogs);
+
     app.innerHTML = `
         <div class="min-h-screen flex items-center justify-center p-4 bg-amber-50 fade-in">
-            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg w-full text-center relative overflow-hidden">
+            <div class="bg-white p-4 sm:p-8 rounded-3xl shadow-2xl max-w-4xl w-full relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-red-500"></div>
-                <div class="mb-6 animate-bounce">
-                    <span class="text-6xl">🎉</span>
+
+                <div class="mb-6 text-center">
+                    <div class="mb-4 animate-bounce">
+                        <span class="text-6xl">🎉</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl font-black text-gray-800 mb-2">Great Job!</h2>
+                    <p class="text-gray-400 font-bold">Session Completed</p>
                 </div>
-                <h2 class="text-4xl font-black text-gray-800 mb-2">Great Job!</h2>
-                <p class="text-gray-400 mb-8 font-bold">Session Completed</p>
-                <div class="grid grid-cols-2 gap-4 mb-8">
-                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+
+                <!-- 基础统计 -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                    <div class="bg-amber-50 p-3 sm:p-4 rounded-2xl border border-amber-100">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Score</div>
-                        <div class="text-4xl font-black text-amber-600">${score}</div>
+                        <div class="text-2xl sm:text-4xl font-black text-amber-600">${score}</div>
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                    <div class="bg-blue-50 p-3 sm:p-4 rounded-2xl border border-blue-100">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Accuracy</div>
-                        <div class="text-4xl font-black text-blue-600">${accuracy}%</div>
+                        <div class="text-2xl sm:text-4xl font-black text-blue-600">${accuracy}%</div>
                     </div>
-                    <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                    <div class="bg-purple-50 p-3 sm:p-4 rounded-2xl border border-purple-100">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Max Streak</div>
-                        <div class="text-4xl font-black text-purple-600">${maxStreak}</div>
+                        <div class="text-2xl sm:text-4xl font-black text-purple-600">${maxStreak}</div>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <div class="bg-gray-50 p-3 sm:p-4 rounded-2xl border border-gray-100">
                         <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Time</div>
-                        <div class="text-xl font-black text-gray-600 mt-2">${minutes}m ${seconds}s</div>
+                        <div class="text-lg sm:text-xl font-black text-gray-600 mt-2">${minutes}m ${seconds}s</div>
                     </div>
                 </div>
+
+                <!-- 详细分析 -->
+                <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-4 sm:p-6 rounded-2xl border-2 border-amber-100 mb-6">
+                    <h3 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                        <span>📊</span> 本次练习详细报告
+                    </h3>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <!-- 表现最好的单词 -->
+                        <div class="bg-white p-4 rounded-xl border border-green-200">
+                            <h4 class="font-bold text-green-600 mb-2 flex items-center gap-2">
+                                <span>✅</span> 表现最佳
+                            </h4>
+                            ${analysis.bestWords.map(word => `
+                                <div class="text-sm">
+                                    <span class="font-bold text-gray-800">${word.word}</span>
+                                    <span class="text-gray-500">- ${word.time}ms, ${word.mistakes}错误</span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- 需要改进的单词 -->
+                        <div class="bg-white p-4 rounded-xl border border-red-200">
+                            <h4 class="font-bold text-red-600 mb-2 flex items-center gap-2">
+                                <span>⚠️</span> 需要改进
+                            </h4>
+                            ${analysis.difficultWords.map(word => `
+                                <div class="text-sm">
+                                    <span class="font-bold text-gray-800">${word.word}</span>
+                                    <span class="text-gray-500">- ${word.time}ms, ${word.mistakes}错误</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 错误热力图 -->
+                    ${analysis.errorHeatmap.length > 0 ? `
+                        <div class="bg-white p-4 rounded-xl border border-amber-200 mb-4">
+                            <h4 class="font-bold text-amber-600 mb-3 flex items-center gap-2">
+                                <span>🔥</span> 错误热力图
+                            </h4>
+                            ${analysis.errorHeatmap.map(item => `
+                                <div class="mb-2">
+                                    <div class="text-sm font-bold text-gray-700 mb-1">${item.word}</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        ${item.heatmap.map((status, idx) => `
+                                            <div class="w-8 h-8 flex items-center justify-center rounded text-xs font-bold border-2 ${
+                                                status === 'perfect' ? 'bg-green-100 border-green-500 text-green-700' :
+                                                status === 'easy' ? 'bg-yellow-100 border-yellow-500 text-yellow-700' :
+                                                status === 'medium' ? 'bg-orange-100 border-orange-500 text-orange-700' :
+                                                'bg-red-100 border-red-500 text-red-700'
+                                            }">
+                                                ${item.targetToken[idx] || ''}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    <!-- 热门错误 -->
+                    ${analysis.topErrors.length > 0 ? `
+                        <div class="bg-white p-4 rounded-xl border border-blue-200">
+                            <h4 class="font-bold text-blue-600 mb-3 flex items-center gap-2">
+                                <span>❌</span> 热门错误
+                            </h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${analysis.topErrors.map(err => `
+                                    <span class="bg-blue-50 px-3 py-1 rounded-lg text-sm font-bold text-blue-700 border border-blue-200">
+                                        ${err.expected} → ${err.actual} <span class="text-blue-500">(${err.count})</span>
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- 操作按钮 -->
                 <div class="space-y-3">
                     <button onclick="goToOnline()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition transform hover:scale-105 active:scale-95">
                         再来一局 (New Seed)
                     </button>
-                    <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-4 rounded-xl transition">
-                        返回主菜单
-                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="renderMemoryAnalysis()" class="w-full bg-white border-2 border-purple-200 hover:border-purple-400 text-purple-600 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                            <span>📈</span> 记忆分析
+                        </button>
+                        <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
+                            返回主菜单
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1009,8 +1132,289 @@ function renderResult() {
 }
 
 /**
+ * 分析会话数据
+ * @param {Array} wordLogs - 单词日志
+ * @returns {Object} 分析结果
+ */
+function analyzeSessionData(wordLogs) {
+    if (!wordLogs || wordLogs.length === 0) {
+        return {
+            bestWords: [],
+            difficultWords: [],
+            errorHeatmap: [],
+            topErrors: []
+        };
+    }
+
+    // 找出表现最好和最差的单词
+    const sortedByPerformance = [...wordLogs].sort((a, b) => {
+        // 先按错误数排序，再按时间排序
+        if (a.mistakesCount !== b.mistakesCount) {
+            return a.mistakesCount - b.mistakesCount;
+        }
+        return a.duration - b.duration;
+    });
+
+    const bestWords = sortedByPerformance.slice(0, 3).map(log => ({
+        word: log.word,
+        time: log.duration,
+        mistakes: log.mistakesCount
+    }));
+
+    const difficultWords = sortedByPerformance.slice(-3).reverse().map(log => ({
+        word: log.word,
+        time: log.duration,
+        mistakes: log.mistakesCount
+    }));
+
+    // 生成错误热力图
+    const errorHeatmap = wordLogs.filter(log => log.mistakesCount > 0).map(log => {
+        const heatmap = [];
+        const targetToken = log.targetToken;
+        for (let i = 0; i < targetToken.length; i++) {
+            if (!log.blankIndices.includes(i)) {
+                heatmap[i] = 'notblank';
+            } else {
+                const blankIdx = log.blankIndices.indexOf(i);
+                if (log.perfectPositions.includes(blankIdx)) {
+                    heatmap[i] = 'perfect';
+                } else {
+                    const mistakesAtPos = (log.mistakesDetails || []).filter(m => m.position === blankIdx);
+                    if (mistakesAtPos.length === 0) {
+                        heatmap[i] = 'perfect';
+                    } else if (mistakesAtPos.length === 1) {
+                        heatmap[i] = 'easy';
+                    } else if (mistakesAtPos.length === 2) {
+                        heatmap[i] = 'medium';
+                    } else {
+                        heatmap[i] = 'hard';
+                    }
+                }
+            }
+        }
+        return {
+            word: log.word,
+            targetToken: targetToken,
+            heatmap: heatmap
+        };
+    });
+
+    // 统计热门错误
+    const errorCounts = {};
+    wordLogs.forEach(log => {
+        if (log.mistakesDetails) {
+            log.mistakesDetails.forEach(err => {
+                const key = `${err.expected}_${err.actual}`;
+                errorCounts[key] = (errorCounts[key] || 0) + 1;
+            });
+        }
+    });
+
+    const topErrors = Object.entries(errorCounts)
+        .map(([key, count]) => {
+            const [expected, actual] = key.split('_');
+            return { expected, actual, count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+    return {
+        bestWords,
+        difficultWords,
+        errorHeatmap,
+        topErrors
+    };
+}
+
+/**
  * 完成练习
  */
 function finishSession() {
     renderResult();
+}
+
+/**
+ * 渲染记忆分析页面
+ */
+function renderMemoryAnalysis() {
+    if (!currentUser) {
+        renderLogin();
+        return;
+    }
+
+    state.view = 'memoryAnalysis';
+    analytics.trackPageView('memoryAnalysis');
+
+    const today = new Date().toISOString().split('T')[0];
+    const dailyStats = analytics.getDailyStats(currentUser.username, today);
+    const weeklyStats = analytics.getWeeklyStats(currentUser.username);
+    const memoryReport = analytics.getMemoryAnalysisReport(currentUser.username);
+
+    app.innerHTML = `
+        <div class="min-h-screen bg-gray-50 p-4 fade-in">
+            <div class="max-w-6xl mx-auto">
+                <!-- 顶部导航 -->
+                <div class="bg-white rounded-2xl shadow-lg p-4 mb-6 flex justify-between items-center sticky top-4 z-20">
+                    <button onclick="renderHome()" class="text-gray-500 hover:text-gray-800 font-bold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                        返回首页
+                    </button>
+                    <h1 class="text-2xl font-black text-purple-600">📊 记忆分析中心</h1>
+                    <div class="text-sm text-gray-400">${new Date().toLocaleDateString('zh-CN')}</div>
+                </div>
+
+                ${memoryReport.hasData ? `
+                    <!-- 今日概览 -->
+                    ${dailyStats ? `
+                        <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <h2 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                                <span>📅</span> 今日练习概览
+                            </h2>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">完成单词</div>
+                                    <div class="text-3xl font-black text-purple-600">${dailyStats.totalWords}</div>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">完美单词</div>
+                                    <div class="text-3xl font-black text-green-600">${dailyStats.perfectWords}</div>
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">准确率</div>
+                                    <div class="text-3xl font-black text-blue-600">${dailyStats.accuracy}%</div>
+                                </div>
+                                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">平均用时</div>
+                                    <div class="text-3xl font-black text-amber-600">${Math.round(dailyStats.avgTimePerWord / 1000)}s</div>
+                                </div>
+                            </div>
+
+                            ${dailyStats.mostDifficultWords && dailyStats.mostDifficultWords.length > 0 ? `
+                                <div class="mb-4">
+                                    <h3 class="font-bold text-gray-700 mb-2">困难单词 (需重点练习)</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${dailyStats.mostDifficultWords.map(word => `
+                                            <div class="bg-red-50 px-3 py-2 rounded-lg border border-red-200">
+                                                <span class="font-bold text-gray-800">${word.word}</span>
+                                                <span class="text-sm text-gray-500 ml-2">错误率${Math.round(word.errorRate * 100)}%</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${dailyStats.mostConfusedLetters && dailyStats.mostConfusedLetters.length > 0 ? `
+                                <div>
+                                    <h3 class="font-bold text-gray-700 mb-2">热门错误</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${dailyStats.mostConfusedLetters.slice(0, 5).map(err => `
+                                            <span class="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 text-blue-700 font-bold">
+                                                ${err.expected} → ${err.actual} <span class="text-blue-500">(${err.count})</span>
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : `
+                        <div class="bg-white rounded-2xl shadow-lg p-8 text-center">
+                            <span class="text-6xl mb-4 block">📝</span>
+                            <h2 class="text-xl font-bold text-gray-600 mb-2">今日暂无练习数据</h2>
+                            <p class="text-gray-400">开始练习来查看详细分析</p>
+                        </div>
+                    `}
+
+                    <!-- 本周统计 -->
+                    ${weeklyStats ? `
+                        <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <h2 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                                <span>📊</span> 本周学习趋势 (${weeklyStats.weekStart} ~ ${weeklyStats.weekEnd})
+                            </h2>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">总单词数</div>
+                                    <div class="text-3xl font-black text-purple-600">${weeklyStats.totalWords}</div>
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">日均单词</div>
+                                    <div class="text-3xl font-black text-blue-600">${weeklyStats.avgWordsPerDay}</div>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-xl border border-green-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">平均准确率</div>
+                                    <div class="text-3xl font-black text-green-600">${weeklyStats.accuracy}%</div>
+                                </div>
+                                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1">准确率变化</div>
+                                    <div class="text-3xl font-black ${weeklyStats.trends.accuracyImprovement >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                        ${weeklyStats.trends.accuracyImprovement >= 0 ? '+' : ''}${weeklyStats.trends.accuracyImprovement}%
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 进步趋势 -->
+                            <div class="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border border-purple-200">
+                                <h3 class="font-bold text-gray-700 mb-3">进步趋势</h3>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-2xl">${weeklyStats.trends.accuracyImprovement >= 0 ? '📈' : '📉'}</span>
+                                        <div>
+                                            <div class="text-sm text-gray-500">准确率变化</div>
+                                            <div class="font-bold ${weeklyStats.trends.accuracyImprovement >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                                ${weeklyStats.trends.accuracyImprovement >= 0 ? '+' : ''}${weeklyStats.trends.accuracyImprovement}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-2xl">${weeklyStats.trends.speedImprovement >= 0 ? '🚀' : '🐌'}</span>
+                                        <div>
+                                            <div class="text-sm text-gray-500">速度变化</div>
+                                            <div class="font-bold ${weeklyStats.trends.speedImprovement >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                                ${weeklyStats.trends.speedImprovement >= 0 ? '+' : ''}${weeklyStats.trends.speedImprovement}ms
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- 智能洞察 -->
+                    ${memoryReport.insights && memoryReport.insights.length > 0 ? `
+                        <div class="bg-white rounded-2xl shadow-lg p-6">
+                            <h2 class="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+                                <span>💡</span> 智能洞察
+                            </h2>
+                            <div class="space-y-3">
+                                ${memoryReport.insights.map(insight => `
+                                    <div class="p-4 rounded-xl border-2 ${
+                                        insight.type === 'success' ? 'bg-green-50 border-green-200' :
+                                        insight.type === 'warning' ? 'bg-red-50 border-red-200' :
+                                        'bg-blue-50 border-blue-200'
+                                    }">
+                                        <div class="font-bold ${
+                                            insight.type === 'success' ? 'text-green-700' :
+                                            insight.type === 'warning' ? 'text-red-700' :
+                                            'text-blue-700'
+                                        } mb-1">
+                                            ${insight.title}
+                                        </div>
+                                        <div class="text-sm text-gray-600">${insight.message}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                ` : `
+                    <div class="bg-white rounded-2xl shadow-lg p-12 text-center">
+                        <span class="text-8xl mb-6 block">📊</span>
+                        <h2 class="text-3xl font-bold text-gray-600 mb-4">开始练习以查看分析</h2>
+                        <p class="text-gray-400 mb-6">完成练习后，这里将显示您的详细记忆分析报告</p>
+                        <button onclick="renderHome()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-xl transition">
+                            立即开始练习
+                        </button>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
 }

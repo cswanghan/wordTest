@@ -218,7 +218,13 @@ function handleKeyInput(key) {
             position: state.session.currentInputIndex,
             expected: correctChar,
             actual: key,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            keyPressDuration: 0, // 将通过后续改进记录按键时长
+            adjacentLetters: {
+                prev: targetCharIdx > 0 ? item.targetToken[targetCharIdx - 1] : null,
+                next: targetCharIdx < item.targetToken.length - 1 ? item.targetToken[targetCharIdx + 1] : null
+            },
+            charType: categorizeChar(correctChar) // 字母类型：vowel(元音), consonant(辅音), 其他
         });
 
         const container = document.getElementById('word-container');
@@ -305,14 +311,40 @@ function handleWordComplete(item) {
         // 记录详细学习日志 (Safely)
         try {
             if (!state.session.wordLogs) state.session.wordLogs = [];
+
+            // 分析完美位置（一次输入即正确的位置）
+            const perfectPositions = [];
+            const blankIndices = item.blankIndices;
+            const mistakePositions = (state.session.currentWordMistakes || []).map(m => m.position);
+            for (let i = 0; i < blankIndices.length; i++) {
+                if (!mistakePositions.includes(i)) {
+                    perfectPositions.push(i);
+                }
+            }
+
+            // 计算平均每个字符的时间
+            const avgTimePerChar = Math.round(timeSec * 1000 / item.blankIndices.length);
+
+            // 分析错误模式
+            const errorPattern = analyzeErrorPattern(state.session.currentWordMistakes || []);
+
             state.session.wordLogs.push({
                 wordId: item.id,
                 word: item.en,
+                group: item.group,
+                targetToken: item.targetToken,
                 startTime: state.session.currentWordStartTime,
                 endTime: endTime,
                 duration: Math.round(timeSec * 1000), // ms
                 mistakesCount: state.session.currentMistakes,
-                mistakesDetails: [...(state.session.currentWordMistakes || [])]
+                perfectPositions: perfectPositions,
+                avgTimePerChar: avgTimePerChar,
+                backspaceCount: calculateBackspaceCount(state.session.currentWordMistakes || []),
+                difficulty: state.settings.difficulty,
+                mistakesDetails: [...(state.session.currentWordMistakes || [])],
+                errorPattern: errorPattern,
+                streakBefore: state.session.streak, // 完成前的连击数
+                scoreEarned: scoreResult.total
             });
         } catch (e) { console.error('Logging error:', e); }
         
@@ -435,5 +467,11 @@ finishSession = function() {
 function handleVirtualKey(key) {
     if (state.view !== 'online') return;
     logger.userAction('VIRTUAL_KEY', 'mobile-keyboard', { key });
+
+    // 标记虚拟键盘正在处理输入，避免input事件重复调用
+    if (typeof window.markVirtualKeyboardInput === 'function') {
+        window.markVirtualKeyboardInput();
+    }
+
     handleKeyInput(key);
 }

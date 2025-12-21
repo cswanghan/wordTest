@@ -188,6 +188,175 @@ function speakWord(text, lang = 'en-US') {
     utterance.lang = lang;
     utterance.rate = 0.9; // 语速稍微慢一点点，方便听清
     utterance.pitch = 1.0;
-    
+
     window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * 字母分类函数
+ * @param {string} char - 单个字母
+ * @returns {string} 字母类型：vowel(元音), consonant(辅音), other(其他)
+ */
+function categorizeChar(char) {
+    if (!char || typeof char !== 'string') return 'other';
+
+    const vowels = ['a', 'e', 'i', 'o', 'u'];
+    const consonants = ['b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'y', 'z'];
+
+    const lowerChar = char.toLowerCase();
+    if (vowels.includes(lowerChar)) return 'vowel';
+    if (consonants.includes(lowerChar)) return 'consonant';
+    return 'other';
+}
+
+/**
+ * 计算两个字符串的编辑距离（Levenshtein Distance）
+ * 用于分析拼写错误的相似度
+ * @param {string} str1 - 字符串1
+ * @param {string} str2 - 字符串2
+ * @returns {number} 编辑距离
+ */
+function levenshteinDistance(str1, str2) {
+    const matrix = [];
+
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    matrix[i][j - 1] + 1,     // insertion
+                    matrix[i - 1][j] + 1      // deletion
+                );
+            }
+        }
+    }
+
+    return matrix[str2.length][str1.length];
+}
+
+/**
+ * 分析错误模式
+ * @param {Array} mistakes - 错误详情数组
+ * @returns {Object} 错误模式分析结果
+ */
+function analyzeErrorPattern(mistakes) {
+    if (!mistakes || mistakes.length === 0) {
+        return {
+            hasMistakes: false,
+            confusedLetters: {},
+            mostCommonError: null,
+            errorTypes: {
+                substitution: 0,
+                adjacentKeys: 0,
+                phonetic: 0
+            },
+            errorPositions: [],
+            difficulty: 'perfect'
+        };
+    }
+
+    const pattern = {
+        hasMistakes: true,
+        confusedLetters: {},
+        mostCommonError: null,
+        errorTypes: {
+            substitution: 0,  // 替换错误
+            adjacentKeys: 0,  // 相邻键错误
+            phonetic: 0       // 发音相似错误
+        },
+        errorPositions: mistakes.map(m => m.position),
+        difficulty: mistakes.length <= 1 ? 'easy' : mistakes.length <= 3 ? 'medium' : 'hard'
+    };
+
+    // 统计混淆字母
+    mistakes.forEach(mistake => {
+        const key = `${mistake.expected}→${mistake.actual}`;
+        pattern.confusedLetters[key] = (pattern.confusedLetters[key] || 0) + 1;
+
+        // 判断错误类型
+        if (isAdjacentKey(mistake.expected, mistake.actual)) {
+            pattern.errorTypes.adjacentKeys++;
+        } else if (isPhoneticSimilar(mistake.expected, mistake.actual)) {
+            pattern.errorTypes.phonetic++;
+        } else {
+            pattern.errorTypes.substitution++;
+        }
+    });
+
+    // 找出最常见错误
+    let maxCount = 0;
+    for (let [key, count] of Object.entries(pattern.confusedLetters)) {
+        if (count > maxCount) {
+            maxCount = count;
+            pattern.mostCommonError = key;
+        }
+    }
+
+    return pattern;
+}
+
+/**
+ * 检查两个字母是否是键盘相邻键
+ * @param {string} char1 - 字母1
+ * @param {string} char2 - 字母2
+ * @returns {boolean} 是否相邻
+ */
+function isAdjacentKey(char1, char2) {
+    const keyboardMap = {
+        'q': ['w', 'a'], 'w': ['q', 'e', 's'], 'e': ['w', 'r', 'd'],
+        'r': ['e', 't', 'f'], 't': ['r', 'y', 'g'], 'y': ['t', 'u', 'h'],
+        'u': ['y', 'i', 'j'], 'i': ['u', 'o', 'k'], 'o': ['i', 'p', 'l'],
+        'p': ['o', 'l'],
+        'a': ['q', 's', 'z'], 's': ['a', 'w', 'd', 'x'], 'd': ['s', 'e', 'f', 'c'],
+        'f': ['d', 'r', 'g', 'v'], 'g': ['f', 't', 'h', 'b'], 'h': ['g', 'y', 'j', 'n'],
+        'j': ['h', 'u', 'k', 'm'], 'k': ['j', 'i', 'l'], 'l': ['k', 'o', 'p'],
+        'z': ['a', 'x'], 'x': ['z', 's', 'c'], 'c': ['x', 'd', 'v'],
+        'v': ['c', 'f', 'b'], 'b': ['v', 'g', 'n'], 'n': ['b', 'h', 'm'],
+        'm': ['n', 'j']
+    };
+
+    const lower1 = char1.toLowerCase();
+    const lower2 = char2.toLowerCase();
+
+    return keyboardMap[lower1]?.includes(lower2) || keyboardMap[lower2]?.includes(lower1) || false;
+}
+
+/**
+ * 检查两个字母是否发音相似
+ * @param {string} char1 - 字母1
+ * @param {string} char2 - 字母2
+ * @returns {boolean} 是否相似
+ */
+function isPhoneticSimilar(char1, char2) {
+    const phoneticGroups = [
+        ['b', 'p'], ['d', 't'], ['g', 'k'], ['z', 's'],
+        ['v', 'f'], ['l', 'r'], ['m', 'n'],
+        ['i', 'y'], ['e', 'a']
+    ];
+
+    const lower1 = char1.toLowerCase();
+    const lower2 = char2.toLowerCase();
+
+    return phoneticGroups.some(group => group.includes(lower1) && group.includes(lower2));
+}
+
+/**
+ * 计算退格次数
+ * @param {Array} mistakes - 错误详情数组
+ * @returns {number} 退格次数
+ */
+function calculateBackspaceCount(mistakes) {
+    // 这里简化处理，实际应该跟踪退格键的使用
+    // 现在根据错误数量估算
+    return mistakes.length;
 }

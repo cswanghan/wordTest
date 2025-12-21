@@ -131,23 +131,44 @@ const analytics = {
      */
     _saveDailyWordStats: function(wordLogs) {
         if (!currentUser) return;
-        
+
         const dateStr = new Date().toISOString().split('T')[0];
         const key = `wordtest_daily_stats_${currentUser.username}_${dateStr}`;
-        let dailyStats = JSON.parse(localStorage.getItem(key) || '{"totalWords":0, "totalTime":0, "wordAnalysis":{}, "confusedPairs":{}}');
+        let dailyStats = JSON.parse(localStorage.getItem(key) || JSON.stringify(this._getEmptyDailyStats()));
 
         wordLogs.forEach(log => {
             dailyStats.totalWords++;
             dailyStats.totalTime += log.duration;
+            dailyStats.perfectWords += (log.mistakesCount === 0) ? 1 : 0;
+            dailyStats.totalMistakes += log.mistakesCount || 0;
+            dailyStats.totalScore += log.scoreEarned || 0;
+
+            // 更新连击统计
+            if (log.streakBefore >= 3) {
+                dailyStats.longStreaks++;
+            }
 
             // 单词分析
             if (!dailyStats.wordAnalysis[log.wordId]) {
-                dailyStats.wordAnalysis[log.wordId] = { count: 0, totalTime: 0, mistakes: 0, errorDetails: {} };
+                dailyStats.wordAnalysis[log.wordId] = {
+                    word: log.word,
+                    group: log.group,
+                    count: 0,
+                    totalTime: 0,
+                    mistakes: 0,
+                    perfectCount: 0,
+                    avgTime: 0,
+                    errorDetails: {},
+                    lastPracticed: log.endTime
+                };
             }
             const wordStat = dailyStats.wordAnalysis[log.wordId];
             wordStat.count++;
             wordStat.totalTime += log.duration;
-            wordStat.mistakes += log.mistakesCount;
+            wordStat.mistakes += log.mistakesCount || 0;
+            wordStat.perfectCount += (log.mistakesCount === 0) ? 1 : 0;
+            wordStat.avgTime = Math.round(wordStat.totalTime / wordStat.count);
+            wordStat.lastPracticed = log.endTime;
 
             // 聚合详细错误指纹
             if (log.mistakesDetails && log.mistakesDetails.length > 0) {
@@ -158,11 +179,255 @@ const analytics = {
                     // 全局混淆对分析 (Expected -> Actual)
                     const pairKey = `${err.expected}_${err.actual}`;
                     dailyStats.confusedPairs[pairKey] = (dailyStats.confusedPairs[pairKey] || 0) + 1;
+
+                    // 字母类型错误分析
+                    const charTypeKey = `${err.charType}_${err.expected}`;
+                    dailyStats.charTypeErrors[charTypeKey] = (dailyStats.charTypeErrors[charTypeKey] || 0) + 1;
                 });
+            }
+
+            // 分组统计
+            if (!dailyStats.groupStats[log.group]) {
+                dailyStats.groupStats[log.group] = {
+                    count: 0,
+                    totalTime: 0,
+                    mistakes: 0,
+                    perfectCount: 0
+                };
+            }
+            dailyStats.groupStats[log.group].count++;
+            dailyStats.groupStats[log.group].totalTime += log.duration;
+            dailyStats.groupStats[log.group].mistakes += log.mistakesCount || 0;
+            if (log.mistakesCount === 0) {
+                dailyStats.groupStats[log.group].perfectCount++;
             }
         });
 
+        // 计算平均值
+        dailyStats.avgTimePerWord = dailyStats.totalWords > 0 ? Math.round(dailyStats.totalTime / dailyStats.totalWords) : 0;
+        dailyStats.avgMistakesPerWord = dailyStats.totalWords > 0 ? Math.round((dailyStats.totalMistakes / dailyStats.totalWords) * 100) / 100 : 0;
+        dailyStats.accuracy = dailyStats.totalWords > 0 ? Math.round((dailyStats.perfectWords / dailyStats.totalWords) * 100) : 0;
+
+        // 计算最困难的单词（按错误率和平均时间）
+        dailyStats.mostDifficultWords = this._calculateMostDifficultWords(dailyStats.wordAnalysis);
+
+        // 计算最混淆的字母对
+        dailyStats.mostConfusedLetters = this._calculateMostConfusedLetters(dailyStats.confusedPairs);
+
         localStorage.setItem(key, JSON.stringify(dailyStats));
+
+        // 更新每周统计
+        this._updateWeeklyStats(dateStr);
+    },
+
+    /**
+     * 获取空的每日统计数据结构
+     * @returns {Object} 空的统计数据
+     * @private
+     */
+    _getEmptyDailyStats: function() {
+        return {
+            date: new Date().toISOString().split('T')[0],
+            totalWords: 0,
+            perfectWords: 0,
+            totalTime: 0,
+            totalMistakes: 0,
+            totalScore: 0,
+            avgTimePerWord: 0,
+            avgMistakesPerWord: 0,
+            accuracy: 0,
+            longStreaks: 0,
+            wordAnalysis: {},
+            confusedPairs: {},
+            charTypeErrors: {},
+            groupStats: {},
+            mostDifficultWords: [],
+            mostConfusedLetters: []
+        };
+    },
+
+    /**
+     * 计算最困难的单词
+     * @param {Object} wordAnalysis - 单词分析数据
+     * @returns {Array} 最困难的单词列表
+     * @private
+     */
+    _calculateMostDifficultWords: function(wordAnalysis) {
+        const words = Object.entries(wordAnalysis).map(([wordId, data]) => {
+            const errorRate = data.count > 0 ? data.mistakes / data.count : 0;
+            return {
+                wordId: parseInt(wordId),
+                word: data.word,
+                group: data.group,
+                count: data.count,
+                avgTime: data.avgTime,
+                errorRate: Math.round(errorRate * 100) / 100,
+                difficulty: errorRate > 0.3 ? 'hard' : errorRate > 0.1 ? 'medium' : 'easy'
+            };
+        });
+
+        // 按错误率和平均时间排序
+        return words
+            .filter(w => w.count >= 2) // 只显示练习2次以上的单词
+            .sort((a, b) => (b.errorRate - a.errorRate) || (b.avgTime - a.avgTime))
+            .slice(0, 5);
+    },
+
+    /**
+     * 计算最混淆的字母对
+     * @param {Object} confusedPairs - 混淆字母对
+     * @returns {Array} 最混淆的字母对列表
+     * @private
+     */
+    _calculateMostConfusedLetters: function(confusedPairs) {
+        const pairs = Object.entries(confusedPairs)
+            .map(([pair, count]) => {
+                const [expected, actual] = pair.split('_');
+                return { expected, actual, count };
+            })
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        return pairs;
+    },
+
+    /**
+     * 更新每周统计
+     * @param {string} dateStr - 日期字符串
+     * @private
+     */
+    _updateWeeklyStats: function(dateStr) {
+        if (!currentUser) return;
+
+        // 计算周开始日期（周一）
+        const date = new Date(dateStr);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // 调整到周一
+        const weekStart = new Date(date.setDate(diff)).toISOString().split('T')[0];
+
+        const weekKey = `wordtest_weekly_stats_${currentUser.username}_${weekStart}`;
+        let weeklyStats = JSON.parse(localStorage.getItem(weekKey) || JSON.stringify(this._getEmptyWeeklyStats(weekStart)));
+
+        // 获取本周所有日期
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(weekStart);
+            day.setDate(day.getDate() + i);
+            const dayStr = day.toISOString().split('T')[0];
+
+            const dailyKey = `wordtest_daily_stats_${currentUser.username}_${dayStr}`;
+            const dailyStr = localStorage.getItem(dailyKey);
+            if (dailyStr) {
+                try {
+                    const dailyData = JSON.parse(dailyStr);
+                    weeklyStats.dailyStats[dayStr] = dailyData;
+                    weeklyStats.totalWords += dailyData.totalWords || 0;
+                    weeklyStats.perfectWords += dailyData.perfectWords || 0;
+                    weeklyStats.totalTime += dailyData.totalTime || 0;
+                    weeklyStats.totalMistakes += dailyData.totalMistakes || 0;
+                    weeklyStats.totalScore += dailyData.totalScore || 0;
+                    weeklyStats.longStreaks += dailyData.longStreaks || 0;
+                } catch (e) {
+                    console.error('解析每日数据失败:', e);
+                }
+            }
+        }
+
+        // 计算周平均值
+        weeklyStats.avgWordsPerDay = Math.round(weeklyStats.totalWords / 7);
+        weeklyStats.avgTimePerWord = weeklyStats.totalWords > 0 ? Math.round(weeklyStats.totalTime / weeklyStats.totalWords) : 0;
+        weeklyStats.accuracy = weeklyStats.totalWords > 0 ? Math.round((weeklyStats.perfectWords / weeklyStats.totalWords) * 100) : 0;
+
+        // 计算趋势
+        weeklyStats.trends = this._calculateWeeklyTrends(weeklyStats.dailyStats);
+
+        localStorage.setItem(weekKey, JSON.stringify(weeklyStats));
+    },
+
+    /**
+     * 获取空的每周统计数据结构
+     * @param {string} weekStart - 周开始日期
+     * @returns {Object} 空的周统计数据
+     * @private
+     */
+    _getEmptyWeeklyStats: function(weekStart) {
+        return {
+            weekStart: weekStart,
+            weekEnd: new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            totalWords: 0,
+            perfectWords: 0,
+            totalTime: 0,
+            totalMistakes: 0,
+            totalScore: 0,
+            longStreaks: 0,
+            avgWordsPerDay: 0,
+            avgTimePerWord: 0,
+            accuracy: 0,
+            dailyStats: {},
+            trends: {
+                accuracyImprovement: 0,
+                speedImprovement: 0,
+                newWordsMastered: 0,
+                problemWords: 0
+            }
+        };
+    },
+
+    /**
+     * 计算每周趋势
+     * @param {Object} dailyStats - 每日统计数据
+     * @returns {Object} 趋势数据
+     * @private
+     */
+    _calculateWeeklyTrends: function(dailyStats) {
+        const dates = Object.keys(dailyStats).sort();
+        if (dates.length < 2) {
+            return {
+                accuracyImprovement: 0,
+                speedImprovement: 0,
+                newWordsMastered: 0,
+                problemWords: 0
+            };
+        }
+
+        // 计算前半周和后半周的平均准确率
+        const midPoint = Math.floor(dates.length / 2);
+        const firstHalf = dates.slice(0, midPoint);
+        const secondHalf = dates.slice(midPoint);
+
+        let firstHalfAccuracy = 0;
+        let secondHalfAccuracy = 0;
+        let firstHalfSpeed = 0;
+        let secondHalfSpeed = 0;
+
+        firstHalf.forEach(date => {
+            const data = dailyStats[date];
+            if (data.totalWords > 0) {
+                firstHalfAccuracy += data.accuracy;
+                firstHalfSpeed += data.avgTimePerWord;
+            }
+        });
+
+        secondHalf.forEach(date => {
+            const data = dailyStats[date];
+            if (data.totalWords > 0) {
+                secondHalfAccuracy += data.accuracy;
+                secondHalfSpeed += data.avgTimePerWord;
+            }
+        });
+
+        const firstHalfCount = firstHalf.length;
+        const secondHalfCount = secondHalf.length;
+
+        return {
+            accuracyImprovement: firstHalfCount > 0 && secondHalfCount > 0
+                ? Math.round(((secondHalfAccuracy / secondHalfCount) - (firstHalfAccuracy / firstHalfCount)) * 10) / 10
+                : 0,
+            speedImprovement: firstHalfCount > 0 && secondHalfCount > 0
+                ? Math.round(((firstHalfSpeed / firstHalfCount) - (secondHalfSpeed / secondHalfCount)) * 10) / 10
+                : 0,
+            newWordsMastered: 0, // 需要更复杂的逻辑来计算
+            problemWords: 0      // 需要更复杂的逻辑来计算
+        };
     },
 
     /**
@@ -427,6 +692,194 @@ const analytics = {
             groups[type] = (groups[type] || 0) + 1;
         });
         return groups;
+    },
+
+    /**
+     * 获取指定日期的每日统计
+     * @param {string} username - 用户名
+     * @param {string} dateStr - 日期字符串 (YYYY-MM-DD)，为空则获取今天
+     * @returns {Object|null} 每日统计数据
+     */
+    getDailyStats: function(username, dateStr = null) {
+        if (!username) return null;
+
+        const date = dateStr || new Date().toISOString().split('T')[0];
+        const key = `wordtest_daily_stats_${username}_${date}`;
+        const statsStr = localStorage.getItem(key);
+
+        if (!statsStr) return null;
+
+        try {
+            return JSON.parse(statsStr);
+        } catch (e) {
+            console.error('解析每日统计数据失败:', e);
+            return null;
+        }
+    },
+
+    /**
+     * 获取指定周的每周统计
+     * @param {string} username - 用户名
+     * @param {string} weekStart - 周开始日期 (YYYY-MM-DD)，为空则获取本周
+     * @returns {Object|null} 每周统计数据
+     */
+    getWeeklyStats: function(username, weekStart = null) {
+        if (!username) return null;
+
+        if (!weekStart) {
+            // 计算本周开始日期（周一）
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            weekStart = new Date(now.setDate(diff)).toISOString().split('T')[0];
+        }
+
+        const key = `wordtest_weekly_stats_${username}_${weekStart}`;
+        const statsStr = localStorage.getItem(key);
+
+        if (!statsStr) return null;
+
+        try {
+            return JSON.parse(statsStr);
+        } catch (e) {
+            console.error('解析每周统计数据失败:', e);
+            return null;
+        }
+    },
+
+    /**
+     * 获取最近N天的每日统计
+     * @param {string} username - 用户名
+     * @param {number} days - 天数
+     * @returns {Array} 每日统计数据数组
+     */
+    getRecentDailyStats: function(username, days = 7) {
+        if (!username) return [];
+
+        const stats = [];
+        const today = new Date();
+
+        for (let i = 0; i < days; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+
+            const dailyStats = this.getDailyStats(username, dateStr);
+            if (dailyStats) {
+                stats.unshift(dailyStats); // 按时间正序添加
+            }
+        }
+
+        return stats;
+    },
+
+    /**
+     * 获取最近N周的每周统计
+     * @param {string} username - 用户名
+     * @param {number} weeks - 周数
+     * @returns {Array} 每周统计数据数组
+     */
+    getRecentWeeklyStats: function(username, weeks = 4) {
+        if (!username) return [];
+
+        const stats = [];
+        const today = new Date();
+
+        for (let i = 0; i < weeks; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - (i * 7));
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            const weekStart = new Date(date.setDate(diff)).toISOString().split('T')[0];
+
+            const weeklyStats = this.getWeeklyStats(username, weekStart);
+            if (weeklyStats) {
+                stats.unshift(weeklyStats); // 按时间正序添加
+            }
+        }
+
+        return stats;
+    },
+
+    /**
+     * 获取用户记忆分析报告
+     * @param {string} username - 用户名
+     * @returns {Object} 记忆分析报告
+     */
+    getMemoryAnalysisReport: function(username) {
+        if (!username) return null;
+
+        const today = new Date().toISOString().split('T')[0];
+        const dailyStats = this.getDailyStats(username, today);
+        const weeklyStats = this.getWeeklyStats(username);
+
+        if (!dailyStats && !weeklyStats) {
+            return {
+                message: '暂无练习数据',
+                hasData: false
+            };
+        }
+
+        const report = {
+            hasData: true,
+            date: today,
+            summary: {
+                today: dailyStats ? {
+                    wordsPracticed: dailyStats.totalWords,
+                    perfectWords: dailyStats.perfectWords,
+                    accuracy: dailyStats.accuracy,
+                    avgTime: dailyStats.avgTimePerWord,
+                    totalMistakes: dailyStats.totalMistakes
+                } : null,
+                thisWeek: weeklyStats ? {
+                    totalWords: weeklyStats.totalWords,
+                    avgWordsPerDay: weeklyStats.avgWordsPerDay,
+                    accuracy: weeklyStats.accuracy,
+                    accuracyImprovement: weeklyStats.trends.accuracyImprovement,
+                    speedImprovement: weeklyStats.trends.speedImprovement
+                } : null
+            },
+            insights: []
+        };
+
+        // 生成洞察
+        if (dailyStats) {
+            // 今日最困难单词
+            if (dailyStats.mostDifficultWords && dailyStats.mostDifficultWords.length > 0) {
+                report.insights.push({
+                    type: 'warning',
+                    title: '今日困难单词',
+                    message: `建议重点练习: ${dailyStats.mostDifficultWords.slice(0, 3).map(w => w.word).join(', ')}`
+                });
+            }
+
+            // 热门错误
+            if (dailyStats.mostConfusedLetters && dailyStats.mostConfusedLetters.length > 0) {
+                const topError = dailyStats.mostConfusedLetters[0];
+                report.insights.push({
+                    type: 'info',
+                    title: '常见错误',
+                    message: `注意区分 "${topError.expected}" 和 "${topError.actual}" (今日${topError.count}次)`
+                });
+            }
+
+            // 准确率评估
+            if (dailyStats.accuracy >= 90) {
+                report.insights.push({
+                    type: 'success',
+                    title: '表现优秀',
+                    message: `今日准确率${dailyStats.accuracy}%，继续保持！`
+                });
+            } else if (dailyStats.accuracy < 70) {
+                report.insights.push({
+                    type: 'warning',
+                    title: '需要改进',
+                    message: `今日准确率${dailyStats.accuracy}%，建议放慢速度，专注准确性`
+                });
+            }
+        }
+
+        return report;
     }
 };
 
