@@ -106,6 +106,11 @@ const analytics = {
         // 保存到用户历史
         this._saveSessionToHistory(session);
 
+        // 新增：聚合每日单词数据
+        if (state.session.wordLogs && state.session.wordLogs.length > 0) {
+            this._saveDailyWordStats(state.session.wordLogs);
+        }
+
         // 清除当前会话
         sessionStorage.removeItem('wordtest_current_session');
 
@@ -117,6 +122,47 @@ const analytics = {
         });
 
         return session;
+    },
+
+    /**
+     * 保存每日单词聚合统计
+     * @param {Array} wordLogs - 本次会话的单词日志
+     * @private
+     */
+    _saveDailyWordStats: function(wordLogs) {
+        if (!currentUser) return;
+        
+        const dateStr = new Date().toISOString().split('T')[0];
+        const key = `wordtest_daily_stats_${currentUser.username}_${dateStr}`;
+        let dailyStats = JSON.parse(localStorage.getItem(key) || '{"totalWords":0, "totalTime":0, "wordAnalysis":{}, "confusedPairs":{}}');
+
+        wordLogs.forEach(log => {
+            dailyStats.totalWords++;
+            dailyStats.totalTime += log.duration;
+
+            // 单词分析
+            if (!dailyStats.wordAnalysis[log.wordId]) {
+                dailyStats.wordAnalysis[log.wordId] = { count: 0, totalTime: 0, mistakes: 0, errorDetails: {} };
+            }
+            const wordStat = dailyStats.wordAnalysis[log.wordId];
+            wordStat.count++;
+            wordStat.totalTime += log.duration;
+            wordStat.mistakes += log.mistakesCount;
+
+            // 聚合详细错误指纹
+            if (log.mistakesDetails && log.mistakesDetails.length > 0) {
+                log.mistakesDetails.forEach(err => {
+                    const errorKey = `${err.position}_${err.expected}_${err.actual}`;
+                    wordStat.errorDetails[errorKey] = (wordStat.errorDetails[errorKey] || 0) + 1;
+
+                    // 全局混淆对分析 (Expected -> Actual)
+                    const pairKey = `${err.expected}_${err.actual}`;
+                    dailyStats.confusedPairs[pairKey] = (dailyStats.confusedPairs[pairKey] || 0) + 1;
+                });
+            }
+        });
+
+        localStorage.setItem(key, JSON.stringify(dailyStats));
     },
 
     /**

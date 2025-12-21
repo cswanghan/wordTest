@@ -25,6 +25,8 @@ const state = {
         currentMistakes: 0,
         totalMistakes: 0, // 新增：总错误按键数
         totalCorrectKeys: 0, // 新增：总正确按键数
+        wordLogs: [], // 新增：每个单词的详细记录
+        currentWordMistakes: [], // 新增：当前单词的错误记录缓存
         startTime: 0,
         currentWordStartTime: 0,
         currentInputIndex: 0 // 指向 blankIndices 的索引
@@ -195,6 +197,15 @@ function handleKeyInput(key) {
         // 输入错误
         state.session.currentMistakes++;
         state.session.totalMistakes++; // 记录错误按键
+        
+        // 记录详细错误指纹
+        state.session.currentWordMistakes.push({
+            position: state.session.currentInputIndex,
+            expected: correctChar,
+            actual: key,
+            timestamp: Date.now()
+        });
+
         const container = document.getElementById('word-container');
         if (container) {
             container.classList.remove('shake');
@@ -267,6 +278,17 @@ function handleWordComplete(item) {
         totalScore: state.session.score
     });
 
+    // 记录详细学习日志
+    state.session.wordLogs.push({
+        wordId: item.id,
+        word: item.en,
+        startTime: state.session.currentWordStartTime,
+        endTime: endTime,
+        duration: Math.round(timeSec * 1000), // ms
+        mistakesCount: state.session.currentMistakes,
+        mistakesDetails: [...state.session.currentWordMistakes] // Copy array
+    });
+
     logger.info('WORD_COMPLETED', {
         wordId: item.id,
         word: item.en,
@@ -305,6 +327,7 @@ function handleWordComplete(item) {
         state.session.currentIndex++;
         state.session.currentInputIndex = 0;
         state.session.currentMistakes = 0;
+        state.session.currentWordMistakes = []; // Reset mistake log for new word
         state.session.currentWordStartTime = Date.now();
 
         const fb = document.getElementById('feedback-layer');
