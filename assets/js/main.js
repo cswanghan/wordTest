@@ -301,7 +301,7 @@ function handleWordComplete(item) {
         endTime: endTime,
         duration: Math.round(timeSec * 1000), // ms
         mistakesCount: state.session.currentMistakes,
-        mistakesDetails: [...state.session.currentWordMistakes] // Copy array
+        mistakesDetails: [...(state.session.currentWordMistakes || [])] // Copy array
     });
 
     logger.info('WORD_COMPLETED', {

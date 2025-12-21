@@ -710,6 +710,8 @@ function renderOnline(items) {
         startTime: Date.now(),
         currentWordStartTime: Date.now(),
         currentInputIndex: 0,
+        currentWordMistakes: [],
+        wordLogs: [],
         logs: []
     };
 
