@@ -1470,18 +1470,15 @@ function renderFullTestSettings(words) {
                 <!-- 分组选择 -->
                 <div class="mb-6">
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">选择测试范围 Select Groups</label>
-                    <div class="flex flex-wrap gap-2">
-                        ${['BE', 'KET', 'Culture'].map(g => {
-                            const isChecked = state.settings.groups.includes(g);
-                            return `
-                                <label class="cursor-pointer select-none group">
-                                    <input type="checkbox" value="${g}" class="peer sr-only" ${isChecked ? 'checked' : ''} onchange="updateGroups(this); renderFullTestSettings(getFilteredWords());">
-                                    <div class="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-500 font-bold peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition-all">
-                                        ${g}
-                                    </div>
-                                </label>
-                            `;
-                        }).join('')}
+                    <div class="flex flex-wrap gap-2" id="fulltest-groups">
+                        ${['BE', 'KET', 'Culture'].map(g => `
+                            <label class="cursor-pointer select-none group">
+                                <input type="checkbox" value="${g}" class="peer sr-only" onchange="handleFullTestGroupToggle(this)">
+                                <div class="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-500 font-bold peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition-all">
+                                    ${g}
+                                </div>
+                            </label>
+                        `).join('')}
                     </div>
                 </div>
 
@@ -1513,20 +1510,14 @@ function renderFullTestSettings(words) {
                         <li>• 听发音并输入完整单词</li>
                         <li>• 点击慢速按钮听清发音</li>
                         <li>• 显示中文释义辅助理解</li>
-                        <li>• 共 ${totalWords} 个单词（已选分组）</li>
+                        <li>• 共 <span id="fulltest-total-words">${totalWords}</span> 个单词（已选分组）</li>
                     </ul>
                 </div>
 
                 <div class="space-y-3">
-                    ${totalWords > 0 ? `
-                        <button onclick="startFullTest(getFilteredWords())" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
-                            开始全量测试 (${totalWords}个单词)
-                        </button>
-                    ` : `
-                        <div class="w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl text-center cursor-not-allowed">
-                            请选择至少一个分组
-                        </div>
-                    `}
+                    <button onclick="startFullTest(getFilteredWords())" id="fulltest-start-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                        开始全量测试 (${totalWords}个单词)
+                    </button>
                     <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
                         返回主页
                     </button>
@@ -1534,6 +1525,57 @@ function renderFullTestSettings(words) {
             </div>
         </div>
     `;
+
+    // 渲染完成后初始化复选框状态
+    setTimeout(() => {
+        initFullTestGroupCheckboxes();
+    }, 0);
+}
+
+/**
+ * 初始化全量测试的分组复选框状态
+ */
+function initFullTestGroupCheckboxes() {
+    const container = document.getElementById('fulltest-groups');
+    if (!container) return;
+
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        const group = checkbox.value;
+        checkbox.checked = state.settings.groups.includes(group);
+    });
+}
+
+/**
+ * 处理全量测试分组切换
+ * @param {HTMLInputElement} checkbox - 复选框元素
+ */
+function handleFullTestGroupToggle(checkbox) {
+    // 更新状态
+    updateGroups(checkbox);
+
+    // 更新总单词数显示
+    const totalWords = getFilteredWords().length;
+    const totalWordsEl = document.getElementById('fulltest-total-words');
+    const startBtn = document.getElementById('fulltest-start-btn');
+
+    if (totalWordsEl) {
+        totalWordsEl.textContent = totalWords;
+    }
+
+    if (startBtn) {
+        if (totalWords > 0) {
+            startBtn.textContent = `开始全量测试 (${totalWords}个单词)`;
+            startBtn.disabled = false;
+            startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
+            startBtn.onclick = () => startFullTest(getFilteredWords());
+        } else {
+            startBtn.textContent = '请选择至少一个分组';
+            startBtn.disabled = true;
+            startBtn.className = 'w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl cursor-not-allowed';
+            startBtn.onclick = null;
+        }
+    }
 }
 
 /**
