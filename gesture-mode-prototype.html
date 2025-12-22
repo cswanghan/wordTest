@@ -232,22 +232,15 @@
             const overlay = document.getElementById('video-overlay');
 
             try {
-                // 实际版本：请求摄像头权限
-                // const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                // video.srcObject = stream;
-
-                // MVP 模拟：显示测试画面（使用英文避免 btoa 编码问题）
-                video.src = 'data:image/svg+xml;base64,' + btoa(`
-                    <svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="640" height="480" fill="#1a1a1a"/>
-                        <text x="320" y="240" font-size="24" fill="white" text-anchor="middle" font-family="Arial">
-                            Camera Feed (Simulated)
-                        </text>
-                        <text x="320" y="280" font-size="16" fill="#666" text-anchor="middle" font-family="Arial">
-                            Real camera will appear in production version
-                        </text>
-                    </svg>
-                `);
+                // 启动真实摄像头
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+                video.srcObject = stream;
 
                 overlay.style.display = 'none';
                 video.classList.add('activated');
