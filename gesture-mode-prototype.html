@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>体感模式原型 - Lion Festival G3</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- MediaPipe Hands 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <style>
         .letter-box {
             transition: all 0.2s ease;
@@ -130,6 +136,13 @@
                         </select>
                     </div>
                     <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">识别模式</label>
+                        <select id="recognition-mode" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="mediapipe" selected>MediaPipe (真实)</option>
+                            <option value="mock">模拟数据</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-sm font-bold text-gray-600 mb-2">显示追踪</label>
                         <button id="toggle-debug" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition">
                             开启
@@ -224,9 +237,17 @@
             document.getElementById('gesture-mode').addEventListener('change', (e) => {
                 gestureMode = e.target.value;
             });
+            document.getElementById('recognition-mode').addEventListener('change', (e) => {
+                const mode = e.target.value;
+                if (mode === 'mediapipe') {
+                    initializeMediaPipe();
+                } else {
+                    startMockGestureSimulation();
+                }
+            });
         }
 
-        // 启动摄像头（模拟）
+        // 启动摄像头
         async function startCamera() {
             const video = document.getElementById('gesture-video');
             const overlay = document.getElementById('video-overlay');
@@ -249,6 +270,14 @@
                 document.getElementById('gesture-status').textContent = '手势：等待手部...';
 
                 console.log('📹 摄像头启动成功');
+
+                // 根据识别模式启动相应功能
+                const recognitionMode = document.getElementById('recognition-mode').value;
+                if (recognitionMode === 'mediapipe') {
+                    initializeMediaPipe();
+                } else {
+                    startMockGestureSimulation();
+                }
 
             } catch (error) {
                 console.error('❌ 摄像头启动失败:', error);
@@ -338,7 +367,171 @@
             return { x, y };
         }
 
-        // 模拟手势循环
+        // ===== MediaPipe 手势识别 =====
+        let mediapipeHands = null;
+        let camera = null;
+
+        // 初始化 MediaPipe
+        async function initializeMediaPipe() {
+            try {
+                console.log('🖐️ 初始化 MediaPipe Hands...');
+
+                // 创建 MediaPipe Hands 实例
+                mediapipeHands = new Hands({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                    }
+                });
+
+                // 配置参数
+                mediapipeHands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.7,
+                    minTrackingConfidence: 0.7
+                });
+
+                // 设置结果回调
+                mediapipeHands.onResults(onMediaPipeResults);
+
+                // 启动摄像头
+                const video = document.getElementById('gesture-video');
+                camera = new Camera(video, {
+                    onFrame: async () => {
+                        await mediapipeHands.send({image: video});
+                    },
+                    width: 640,
+                    height: 480
+                });
+
+                camera.start();
+
+                console.log('✅ MediaPipe 初始化成功');
+                document.getElementById('gesture-status').textContent = '手势：MediaPipe 运行中...';
+
+            } catch (error) {
+                console.error('❌ MediaPipe 初始化失败:', error);
+                alert('MediaPipe 初始化失败：' + error.message);
+            }
+        }
+
+        // 处理 MediaPipe 结果
+        function onMediaPipeResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // 更新手势数据
+                mockGesture.isHandVisible = true;
+                mockGesture.cursor = calculateCursorFromLandmarks(landmarks);
+                mockGesture.gesture = classifyGestureFromLandmarks(landmarks);
+                mockGesture.confidence = 0.95;
+
+                // 绘制手部关键点
+                drawHandLandmarks(landmarks);
+
+            } else {
+                mockGesture.isHandVisible = false;
+                // 清空画布
+                const canvas = document.getElementById('gesture-canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // 更新UI
+            updateGestureDisplay();
+            checkLetterCollision();
+        }
+
+        // 从关键点计算光标位置
+        function calculateCursorFromLandmarks(landmarks) {
+            // 使用中指尖作为光标
+            const tip = landmarks[8]; // index finger tip
+            return {
+                x: (1 - tip.x) * 100, // 翻转X轴
+                y: tip.y * 100
+            };
+        }
+
+        // 从关键点分类手势
+        function classifyGestureFromLandmarks(landmarks) {
+            // 计算每根手指的张开度
+            const fingerOpenness = [
+                isThumbOpen(landmarks),
+                isIndexOpen(landmarks),
+                isMiddleOpen(landmarks),
+                isRingOpen(landmarks),
+                isPinkyOpen(landmarks)
+            ];
+
+            const averageOpenness = fingerOpenness.filter(open => open).length / 5;
+
+            // 分类
+            if (averageOpenness > 0.8) {
+                return 'open_palm';
+            } else if (averageOpenness < 0.3) {
+                return 'closed_fist';
+            } else {
+                return 'pointing';
+            }
+        }
+
+        // 检查手指是否张开
+        function isThumbOpen(landmarks) {
+            const tip = landmarks[4];
+            const mcp = landmarks[2];
+            return Math.abs(tip.x - mcp.x) > 0.05;
+        }
+        function isIndexOpen(landmarks) {
+            const tip = landmarks[8];
+            const mcp = landmarks[5];
+            return tip.y < mcp.y - 0.05;
+        }
+        function isMiddleOpen(landmarks) {
+            const tip = landmarks[12];
+            const mcp = landmarks[9];
+            return tip.y < mcp.y - 0.05;
+        }
+        function isRingOpen(landmarks) {
+            const tip = landmarks[16];
+            const mcp = landmarks[13];
+            return tip.y < mcp.y - 0.05;
+        }
+        function isPinkyOpen(landmarks) {
+            const tip = landmarks[20];
+            const mcp = landmarks[17];
+            return tip.y < mcp.y - 0.05;
+        }
+
+        // 绘制手部关键点
+        function drawHandLandmarks(landmarks) {
+            const canvas = document.getElementById('gesture-canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制关键点
+            landmarks.forEach(landmark => {
+                const x = (1 - landmark.x) * canvas.width;
+                const y = landmark.y * canvas.height;
+
+                ctx.fillStyle = '#10b981';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            // 绘制光标位置
+            const cursor = calculateCursorFromLandmarks(landmarks);
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc((cursor.x / 100) * canvas.width, (cursor.y / 100) * canvas.height, 8, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // ===== 模拟手势循环 =====
         function startMockGestureSimulation() {
             let mouseX = 50, mouseY = 50;
             let targetX = 50, targetY = 50;
