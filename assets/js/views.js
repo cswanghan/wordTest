@@ -1561,6 +1561,45 @@ function initFullTestGroupCheckboxes() {
         const group = checkbox.value;
         checkbox.checked = state.settings.groups.includes(group);
     });
+
+    // 更新按钮文本以反映当前选择的分组
+    updateFullTestStartButtonText();
+}
+
+/**
+ * 更新全量测试开始按钮文本
+ */
+function updateFullTestStartButtonText() {
+    console.log('updateFullTestStartButtonText called');
+    console.log('Current state.settings.groups:', state.settings.groups);
+
+    const filteredWords = getFilteredWords();
+    console.log('Filtered words:', filteredWords.length);
+
+    const totalWords = filteredWords.length;
+
+    // 更新总单词数显示
+    const totalWordsEl = document.getElementById('fulltest-total-words');
+    if (totalWordsEl) {
+        totalWordsEl.textContent = totalWords;
+    }
+
+    // 更新按钮
+    const startBtn = document.getElementById('fulltest-start-btn');
+    if (startBtn) {
+        const newText = totalWords > 0
+            ? `开始全量测试 (${totalWords}个单词)`
+            : '请选择至少一个分组';
+        startBtn.textContent = newText;
+
+        if (totalWords > 0) {
+            startBtn.disabled = false;
+            startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
+        } else {
+            startBtn.disabled = true;
+            startBtn.className = 'w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl cursor-not-allowed';
+        }
+    }
 }
 
 /**
@@ -1573,43 +1612,8 @@ function handleFullTestGroupToggle(checkbox) {
     // 更新状态
     updateGroups(checkbox);
 
-    // 强制重新获取最新数据
-    const filteredWords = getFilteredWords();
-    console.log('Filtered words:', filteredWords.length, filteredWords);
-
-    const totalWords = filteredWords.length;
-    console.log('Total words:', totalWords);
-
-    // 更新总单词数显示
-    const totalWordsEl = document.getElementById('fulltest-total-words');
-    console.log('totalWordsEl found:', totalWordsEl);
-    if (totalWordsEl) {
-        totalWordsEl.textContent = totalWords;
-        console.log('Updated totalWordsEl to:', totalWords);
-    } else {
-        console.error('totalWordsEl not found!');
-    }
-
-    // 更新按钮
-    const startBtn = document.getElementById('fulltest-start-btn');
-    console.log('startBtn found:', startBtn);
-    if (startBtn) {
-        const newText = totalWords > 0
-            ? `开始全量测试 (${totalWords}个单词)`
-            : '请选择至少一个分组';
-        startBtn.textContent = newText;
-        console.log('Updated startBtn to:', newText);
-
-        if (totalWords > 0) {
-            startBtn.disabled = false;
-            startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
-        } else {
-            startBtn.disabled = true;
-            startBtn.className = 'w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl cursor-not-allowed';
-        }
-    } else {
-        console.error('startBtn not found!');
-    }
+    // 更新按钮文本
+    updateFullTestStartButtonText();
 }
 
 /**
