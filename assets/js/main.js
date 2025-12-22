@@ -61,7 +61,13 @@ function updateGroups(checkbox) {
  * @returns {Array} 过滤后的单词数组
  */
 function getFilteredWords() {
-    return WORDS.filter(w => state.settings.groups.includes(w.group));
+    // 确保 groups 是数组
+    if (!Array.isArray(state.settings.groups)) {
+        console.warn('state.settings.groups is not an array:', state.settings.groups);
+        state.settings.groups = ['BE', 'KET', 'Culture']; // 重置为默认值
+    }
+    const groups = state.settings.groups;
+    return WORDS.filter(w => groups.includes(w.group));
 }
 
 /**
