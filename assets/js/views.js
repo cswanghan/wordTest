@@ -1471,14 +1471,17 @@ function renderFullTestSettings(words) {
                 <div class="mb-6">
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">选择测试范围 Select Groups</label>
                     <div class="flex flex-wrap gap-2">
-                        ${['BE', 'KET', 'Culture'].map(g => `
-                            <label class="cursor-pointer select-none group">
-                                <input type="checkbox" value="${g}" class="peer sr-only" checked onchange="updateGroups(this); renderFullTestSettings(getFilteredWords());">
-                                <div class="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-500 font-bold peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition-all">
-                                    ${g}
-                                </div>
-                            </label>
-                        `).join('')}
+                        ${['BE', 'KET', 'Culture'].map(g => {
+                            const isChecked = state.settings.groups.includes(g);
+                            return `
+                                <label class="cursor-pointer select-none group">
+                                    <input type="checkbox" value="${g}" class="peer sr-only" ${isChecked ? 'checked' : ''} onchange="updateGroups(this); renderFullTestSettings(getFilteredWords());">
+                                    <div class="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-500 font-bold peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition-all">
+                                        ${g}
+                                    </div>
+                                </label>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
 
@@ -1515,9 +1518,15 @@ function renderFullTestSettings(words) {
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="startFullTest(getFilteredWords())" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
-                        开始全量测试 (${totalWords}个单词)
-                    </button>
+                    ${totalWords > 0 ? `
+                        <button onclick="startFullTest(getFilteredWords())" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                            开始全量测试 (${totalWords}个单词)
+                        </button>
+                    ` : `
+                        <div class="w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl text-center cursor-not-allowed">
+                            请选择至少一个分组
+                        </div>
+                    `}
                     <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
                         返回主页
                     </button>
