@@ -502,7 +502,7 @@
             return tip.y < mcp.y - 0.05;
         }
 
-        // 绘制手部关键点
+        // 绘制手部关键点（应用镜像变换）
         function drawHandLandmarks(landmarks) {
             const canvas = document.getElementById('gesture-canvas');
             const ctx = canvas.getContext('2d');
@@ -512,9 +512,14 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // 应用镜像变换
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.translate(-canvas.width, 0);
+
             // 绘制关键点
             landmarks.forEach(landmark => {
-                const x = (1 - landmark.x) * canvas.width;
+                const x = landmark.x * canvas.width;
                 const y = landmark.y * canvas.height;
 
                 ctx.fillStyle = '#10b981';
@@ -523,7 +528,9 @@
                 ctx.fill();
             });
 
-            // 绘制光标位置
+            ctx.restore();
+
+            // 绘制光标位置（镜像）
             const cursor = calculateCursorFromLandmarks(landmarks);
             ctx.fillStyle = '#ef4444';
             ctx.beginPath();
@@ -591,7 +598,7 @@
             drawGestureCanvas();
         }
 
-        // 绘制手势画布
+        // 绘制手势画布（镜像版本）
         function drawGestureCanvas() {
             const canvas = document.getElementById('gesture-canvas');
             const ctx = canvas.getContext('2d');
@@ -602,6 +609,11 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (mockGesture.isHandVisible) {
+                // 应用镜像变换
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.translate(-canvas.width, 0);
+
                 // 绘制手部轮廓（模拟）
                 const centerX = (mockGesture.cursor.x / 100) * canvas.width;
                 const centerY = (mockGesture.cursor.y / 100) * canvas.height;
@@ -612,13 +624,15 @@
                 ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
                 ctx.stroke();
 
-                // 绘制光标
+                ctx.restore();
+
+                // 绘制光标（镜像）
                 ctx.fillStyle = '#ef4444';
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                ctx.arc((mockGesture.cursor.x / 100) * canvas.width, (mockGesture.cursor.y / 100) * canvas.height, 5, 0, 2 * Math.PI);
                 ctx.fill();
 
-                // 绘制手势状态
+                // 绘制手势状态（不镜像文字）
                 ctx.fillStyle = '#10b981';
                 ctx.font = '16px Arial';
                 ctx.fillText(`手势: ${mockGesture.gesture}`, 10, 25);
