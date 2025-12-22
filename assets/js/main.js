@@ -529,6 +529,8 @@ function startFullTest(words) {
         correctCount: 0,
         wrongCount: 0,
         startTime: Date.now(),
+        currentWordStartTime: Date.now(),
+        totalTime: 0,
         results: []
     };
 
@@ -549,8 +551,8 @@ function submitFullTestWord() {
     const correctAnswer = currentWord.en.toLowerCase();
     const isCorrect = userInput === correctAnswer;
 
-    // 计算用时
-    const timeSpent = Date.now() - state.fullTestSession.startTime - (state.fullTestSession.totalTime || 0);
+    // 计算当前单词用时
+    const timeSpent = Date.now() - state.fullTestSession.currentWordStartTime;
 
     // 计算得分
     let wordScore = 0;
@@ -568,7 +570,7 @@ function submitFullTestWord() {
     }
 
     state.fullTestSession.score += wordScore;
-    state.fullTestSession.totalTime = (state.fullTestSession.totalTime || 0) + timeSpent;
+    state.fullTestSession.totalTime += timeSpent;
 
     // 记录结果
     state.fullTestSession.results.push({
@@ -594,6 +596,8 @@ function submitFullTestWord() {
             finishFullTest();
         } else {
             // 下一题
+            // 更新当前单词开始时间
+            state.fullTestSession.currentWordStartTime = Date.now();
             renderFullTest();
         }
     }, 2000);
