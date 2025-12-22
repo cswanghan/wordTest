@@ -5,7 +5,7 @@
 
 // 状态管理
 const state = {
-    view: 'home', // home, printSettings, printPreview, online, result
+    view: 'home', // home, printSettings, printPreview, online, result, fullTest, fullTestResult
     seed: Date.now(),
     settings: {
         groups: ['BE', 'KET', 'Culture'],
@@ -30,7 +30,9 @@ const state = {
         startTime: 0,
         currentWordStartTime: 0,
         currentInputIndex: 0 // 指向 blankIndices 的索引
-    }
+    },
+    // 新增：全量测试状态
+    fullTestSession: null
 };
 
 /**
@@ -484,4 +486,169 @@ function handleVirtualKey(key) {
     }
 
     handleKeyInput(key);
+}
+
+/**
+ * 新增：前往全量拼写测试设置页
+ */
+function goToFullTest() {
+    analytics.trackClick('GO_TO_FULLTEST');
+    logger.userAction('CLICK', 'goToFullTest', { groups: state.settings.groups });
+
+    const words = getFilteredWords();
+    if (words.length === 0) {
+        logger.warn('FULLTEST_NO_GROUPS', { groups: state.settings.groups });
+        alert('请至少选择一个分组');
+        return;
+    }
+
+    renderFullTestSettings(words);
+}
+
+/**
+ * 新增：开始全量拼写测试
+ * @param {Array} words - 选中的单词列表
+ */
+function startFullTest(words) {
+    analytics.trackClick('START_FULLTEST', {
+        wordCount: words.length,
+        groups: state.settings.groups
+    });
+
+    logger.info('FULLTEST_START', {
+        wordCount: words.length,
+        groups: state.settings.groups
+    });
+
+    // 初始化全量测试会话
+    state.fullTestSession = {
+        testId: 'fulltest_' + Date.now(),
+        words: [...words],
+        currentIndex: 0,
+        score: 0,
+        correctCount: 0,
+        wrongCount: 0,
+        startTime: Date.now(),
+        results: []
+    };
+
+    renderFullTest();
+}
+
+/**
+ * 新增：提交当前单词答案
+ */
+function submitFullTestWord() {
+    if (!state.fullTestSession) return;
+
+    const currentWord = state.fullTestSession.words[state.fullTestSession.currentIndex];
+    const inputElement = document.getElementById('fulltest-input');
+    if (!inputElement) return;
+
+    const userInput = inputElement.value.trim().toLowerCase();
+    const correctAnswer = currentWord.en.toLowerCase();
+    const isCorrect = userInput === correctAnswer;
+
+    // 计算用时
+    const timeSpent = Date.now() - state.fullTestSession.startTime - (state.fullTestSession.totalTime || 0);
+
+    // 计算得分
+    let wordScore = 0;
+    if (isCorrect) {
+        wordScore = 100;
+        // 时间奖励
+        if (timeSpent <= 10000) {
+            wordScore += 10; // 10秒内完成
+        } else if (timeSpent <= 20000) {
+            wordScore += 5;  // 20秒内完成
+        }
+        state.fullTestSession.correctCount++;
+    } else {
+        state.fullTestSession.wrongCount++;
+    }
+
+    state.fullTestSession.score += wordScore;
+    state.fullTestSession.totalTime = (state.fullTestSession.totalTime || 0) + timeSpent;
+
+    // 记录结果
+    state.fullTestSession.results.push({
+        wordId: currentWord.id,
+        word: currentWord.en,
+        chinese: currentWord.cn,
+        group: currentWord.group,
+        userInput: userInput,
+        isCorrect: isCorrect,
+        timeSpent: timeSpent,
+        score: wordScore
+    });
+
+    // 显示反馈
+    showFullTestFeedback(isCorrect, wordScore);
+
+    // 2秒后进入下一题或结束测试
+    setTimeout(() => {
+        state.fullTestSession.currentIndex++;
+
+        if (state.fullTestSession.currentIndex >= state.fullTestSession.words.length) {
+            // 完成测试
+            finishFullTest();
+        } else {
+            // 下一题
+            renderFullTest();
+        }
+    }, 2000);
+}
+
+/**
+ * 新增：显示答案反馈
+ * @param {boolean} isCorrect - 是否正确
+ * @param {number} score - 得分
+ */
+function showFullTestFeedback(isCorrect, score) {
+    const feedbackEl = document.getElementById('fulltest-feedback');
+    if (!feedbackEl) return;
+
+    if (isCorrect) {
+        feedbackEl.innerHTML = `<span class="text-green-600 font-bold">✓ 正确！+${score}分</span>`;
+        feedbackEl.className = 'text-green-600 font-bold text-lg';
+    } else {
+        const currentWord = state.fullTestSession.words[state.fullTestSession.currentIndex];
+        feedbackEl.innerHTML = `<span class="text-red-600 font-bold">✗ 错误！正确答案是：${currentWord.en}</span>`;
+        feedbackEl.className = 'text-red-600 font-bold text-lg';
+    }
+
+    feedbackEl.style.opacity = '1';
+}
+
+/**
+ * 新增：完成全量测试
+ */
+function finishFullTest() {
+    const session = state.fullTestSession;
+    const totalWords = session.words.length;
+    const accuracy = Math.round((session.correctCount / totalWords) * 100);
+    const avgTime = Math.round(session.totalTime / totalWords);
+
+    // 记录到analytics
+    try {
+        analytics.trackSessionComplete({
+            totalScore: session.score,
+            totalWords: totalWords,
+            correctCount: session.correctCount,
+            wrongCount: session.wrongCount,
+            accuracy: accuracy,
+            avgTime: avgTime,
+            type: 'fulltest'
+        });
+    } catch (e) {
+        console.error('Analytics error:', e);
+    }
+
+    logger.info('FULLTEST_COMPLETE', {
+        score: session.score,
+        accuracy: accuracy,
+        totalWords: totalWords
+    });
+
+    renderFullTestResult();
 }

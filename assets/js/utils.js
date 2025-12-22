@@ -193,6 +193,50 @@ function speakWord(text, lang = 'en-US') {
 }
 
 /**
+ * 慢速播放单词发音（新增功能）
+ * @param {string} text - 要朗读的文本
+ * @param {string} lang - 语言 (默认 en-US)
+ */
+function playSlowPronunciation(text, lang = 'en-US') {
+    if (!('speechSynthesis' in window)) {
+        console.warn('当前浏览器不支持语音合成');
+        return;
+    }
+
+    // 取消当前正在进行的朗读
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 0.6; // 慢速播放：0.6倍速
+    utterance.pitch = 1.0;
+
+    window.speechSynthesis.speak(utterance);
+}
+
+/**
+ * 标准速度播放单词（新增功能）
+ * @param {string} text - 要朗读的文本
+ * @param {string} lang - 语言 (默认 en-US)
+ */
+function playNormalPronunciation(text, lang = 'en-US') {
+    if (!('speechSynthesis' in window)) {
+        console.warn('当前浏览器不支持语音合成');
+        return;
+    }
+
+    // 取消当前正在进行的朗读
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 0.9; // 标准速度
+    utterance.pitch = 1.0;
+
+    window.speechSynthesis.speak(utterance);
+}
+
+/**
  * 字母分类函数
  * @param {string} char - 单个字母
  * @returns {string} 字母类型：vowel(元音), consonant(辅音), other(其他)

@@ -490,6 +490,11 @@ function renderHome() {
                             <span>🎮</span> 开始闯关 (Online)
                         </span>
                     </button>
+                    <button onclick="goToFullTest()" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg shadow-purple-200 transition-all transform hover:-translate-y-1 active:translate-y-0">
+                        <span class="flex items-center justify-center gap-2">
+                            <span>📝</span> 全量拼写测试
+                        </span>
+                    </button>
                     <button onclick="goToPrintSettings()" class="w-full bg-white border-2 border-amber-200 text-amber-600 hover:border-amber-400 hover:bg-amber-50 font-bold py-4 rounded-2xl text-lg transition-all flex items-center justify-center gap-2">
                         <span>🖨️</span> 生成打印单 (Print)
                     </button>
@@ -1414,6 +1419,284 @@ function renderMemoryAnalysis() {
                         </button>
                     </div>
                 `}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 新增：渲染全量测试设置页
+ * @param {Array} words - 可用单词列表
+ */
+function renderFullTestSettings(words) {
+    state.view = 'fullTest';
+    analytics.trackPageView('fullTest');
+
+    // 统计各分组的单词数量
+    const groupStats = {
+        BE: words.filter(w => w.group === 'BE').length,
+        KET: words.filter(w => w.group === 'KET').length,
+        Culture: words.filter(w => w.group === 'Culture').length
+    };
+
+    const totalWords = words.length;
+
+    app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-amber-50 fade-in">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border-4 border-amber-100">
+                <div class="text-center mb-8">
+                    <span class="text-6xl block mb-2">📝</span>
+                    <h2 class="text-3xl font-black text-gray-800">全量拼写测试</h2>
+                    <p class="text-gray-400 font-bold text-sm mt-2">完整单词拼写测试</p>
+                </div>
+
+                <div class="mb-6">
+                    <div class="text-sm font-bold text-gray-600 mb-3">测试范围（当前设置）</div>
+                    <div class="space-y-2">
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-gray-700">BE组</span>
+                            <span class="text-gray-500">${groupStats.BE}个单词</span>
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-gray-700">KET组</span>
+                            <span class="text-gray-500">${groupStats.KET}个单词</span>
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-gray-700">Culture组</span>
+                            <span class="text-gray-500">${groupStats.Culture}个单词</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-6">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xl">💡</span>
+                        <span class="font-bold text-amber-700">测试说明</span>
+                    </div>
+                    <ul class="text-sm text-amber-600 space-y-1">
+                        <li>• 听发音并输入完整单词</li>
+                        <li>• 点击慢速按钮听清发音</li>
+                        <li>• 显示中文释义辅助理解</li>
+                        <li>• 总共 ${totalWords} 个单词</li>
+                    </ul>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="startFullTest(getFilteredWords())" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                        开始全量测试 (${totalWords}个单词)
+                    </button>
+                    <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
+                        返回主页
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 新增：渲染全量测试页面
+ */
+function renderFullTest() {
+    state.view = 'fullTest';
+    const session = state.fullTestSession;
+    const currentIndex = session.currentIndex;
+    const totalWords = session.words.length;
+    const currentWord = session.words[currentIndex];
+    const progress = Math.round((currentIndex / totalWords) * 100);
+
+    app.innerHTML = `
+        <div class="h-screen flex flex-col bg-amber-50 overflow-hidden">
+            <!-- 顶部栏 -->
+            <div class="bg-white p-4 shadow-sm flex justify-between items-center">
+                <button onclick="if(confirm('确定要退出测试吗？进度将丢失。')) renderHome()" class="text-gray-400 hover:text-red-500 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <div class="flex flex-col items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase">进度</span>
+                    <span class="font-black text-lg text-amber-600">${currentIndex + 1} / ${totalWords}</span>
+                </div>
+
+                <div class="flex flex-col items-end">
+                    <span class="text-xs font-bold text-gray-400 uppercase">得分</span>
+                    <span class="font-black text-lg text-amber-600">${session.score}</span>
+                </div>
+            </div>
+
+            <!-- 进度条 -->
+            <div class="bg-white px-4 py-2 border-b border-gray-100">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: ${progress}%"></div>
+                </div>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="flex-1 flex flex-col items-center justify-center p-6">
+                <div class="w-full max-w-2xl">
+                    <!-- 中文提示 -->
+                    <div class="text-center mb-8">
+                        <div class="text-sm font-bold text-gray-400 uppercase mb-2">中文释义</div>
+                        <div class="text-4xl font-black text-gray-800">${currentWord.cn}</div>
+                    </div>
+
+                    <!-- 发音按钮 -->
+                    <div class="flex justify-center gap-4 mb-8">
+                        <button onclick="playNormalPronunciation('${currentWord.en}')" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            </svg>
+                            <span>播放</span>
+                        </button>
+                        <button onclick="playSlowPronunciation('${currentWord.en}')" class="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>慢速</span>
+                        </button>
+                    </div>
+
+                    <!-- 输入框 -->
+                    <div class="mb-6">
+                        <input type="text" id="fulltest-input" placeholder="输入完整的英文单词..." class="w-full px-6 py-4 text-2xl font-mono text-center border-4 border-gray-200 rounded-2xl focus:border-amber-500 focus:outline-none transition" autofocus>
+                    </div>
+
+                    <!-- 反馈区域 -->
+                    <div id="fulltest-feedback" class="text-center mb-6 min-h-[40px] flex items-center justify-center opacity-0 transition-all"></div>
+
+                    <!-- 按钮 -->
+                    <div class="flex justify-center gap-4">
+                        <button onclick="submitFullTestWord()" class="bg-amber-500 hover:bg-amber-600 text-white font-black py-4 px-8 rounded-xl text-xl shadow-lg transition transform hover:scale-105">
+                            提交答案
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部进度 -->
+            <div class="bg-white p-4 border-t border-gray-100">
+                <div class="flex justify-center gap-1 flex-wrap">
+                    ${Array.from({ length: totalWords }, (_, i) => {
+                        const isCompleted = i < currentIndex;
+                        const isCurrent = i === currentIndex;
+                        return `<div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                            isCompleted ? 'bg-green-500 text-white' :
+                            isCurrent ? 'bg-amber-500 text-white' :
+                            'bg-gray-200 text-gray-500'
+                        }">${i + 1}</div>`;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 聚焦到输入框
+    setTimeout(() => {
+        const input = document.getElementById('fulltest-input');
+        if (input) input.focus();
+    }, 100);
+}
+
+/**
+ * 新增：渲染全量测试结果页
+ */
+function renderFullTestResult() {
+    state.view = 'fullTestResult';
+    const session = state.fullTestSession;
+    const totalWords = session.words.length;
+    const accuracy = Math.round((session.correctCount / totalWords) * 100);
+    const totalTimeSec = Math.round(session.totalTime / 1000);
+    const minutes = Math.floor(totalTimeSec / 60);
+    const seconds = totalTimeSec % 60;
+
+    // 找出未掌握的单词
+    const wrongWords = session.results.filter(r => !r.isCorrect);
+
+    app.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center p-4 bg-amber-50 fade-in">
+            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-2xl w-full text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-purple-500"></div>
+
+                <div class="mb-6">
+                    <span class="text-6xl block mb-2">🎉</span>
+                    <h2 class="text-4xl font-black text-gray-800 mb-2">测试完成！</h2>
+                    <p class="text-gray-400 font-bold">全量拼写测试结果</p>
+                </div>
+
+                <!-- 基础统计 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">总得分</div>
+                        <div class="text-3xl font-black text-amber-600">${session.score}</div>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">准确率</div>
+                        <div class="text-3xl font-black text-blue-600">${accuracy}%</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-2xl border border-green-100">
+                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">已掌握</div>
+                        <div class="text-3xl font-black text-green-600">${session.correctCount}/${totalWords}</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                        <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">用时</div>
+                        <div class="text-2xl font-black text-purple-600">${minutes}m ${seconds}s</div>
+                    </div>
+                </div>
+
+                <!-- 掌握情况 -->
+                <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl border-2 border-amber-100 mb-6">
+                    <h3 class="text-xl font-black text-gray-800 mb-4">掌握情况分析</h3>
+
+                    <div class="grid grid-cols-3 gap-4 mb-4">
+                        <div class="bg-white p-4 rounded-xl border border-green-200">
+                            <div class="text-2xl font-black text-green-600">${session.correctCount}</div>
+                            <div class="text-sm text-gray-500 font-bold">已掌握</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-yellow-200">
+                            <div class="text-2xl font-black text-yellow-600">0</div>
+                            <div class="text-sm text-gray-500 font-bold">需复习</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-red-200">
+                            <div class="text-2xl font-black text-red-600">${session.wrongCount}</div>
+                            <div class="text-sm text-gray-500 font-bold">困难单词</div>
+                        </div>
+                    </div>
+
+                    ${wrongWords.length > 0 ? `
+                        <div class="bg-white p-4 rounded-xl border border-red-200 text-left">
+                            <h4 class="font-bold text-red-600 mb-2">需要复习的单词：</h4>
+                            <div class="space-y-2">
+                                ${wrongWords.map(w => `
+                                    <div class="flex items-center justify-between p-2 bg-red-50 rounded">
+                                        <span class="font-bold text-gray-800">${w.word}</span>
+                                        <span class="text-sm text-gray-500">${w.chinese}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="bg-white p-4 rounded-xl border border-green-200">
+                            <span class="text-green-600 font-bold">🎉 恭喜！所有单词都已掌握！</span>
+                        </div>
+                    `}
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="space-y-3">
+                    <button onclick="startFullTest(getFilteredWords())" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition transform hover:scale-105">
+                        重新测试
+                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
+                            返回主页
+                        </button>
+                        <button onclick="goToOnline()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
+                            挖空练习
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
