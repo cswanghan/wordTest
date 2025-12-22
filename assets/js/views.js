@@ -1450,39 +1450,55 @@ function renderFullTestSettings(words) {
                     <p class="text-gray-400 font-bold text-sm mt-2">完整单词拼写测试</p>
                 </div>
 
+                <!-- 分组选择 -->
                 <div class="mb-6">
-                    <div class="text-sm font-bold text-gray-600 mb-3">测试范围（当前设置）</div>
-                    <div class="space-y-2">
-                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span class="font-bold text-gray-700">BE组</span>
-                            <span class="text-gray-500">${groupStats.BE}个单词</span>
-                        </label>
-                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span class="font-bold text-gray-700">KET组</span>
-                            <span class="text-gray-500">${groupStats.KET}个单词</span>
-                        </label>
-                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span class="font-bold text-gray-700">Culture组</span>
-                            <span class="text-gray-500">${groupStats.Culture}个单词</span>
-                        </label>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">选择测试范围 Select Groups</label>
+                    <div class="flex flex-wrap gap-2">
+                        ${['BE', 'KET', 'Culture'].map(g => `
+                            <label class="cursor-pointer select-none group">
+                                <input type="checkbox" value="${g}" class="peer sr-only" checked onchange="updateGroups(this); renderFullTestSettings(getFilteredWords());">
+                                <div class="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-500 font-bold peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition-all">
+                                    ${g}
+                                </div>
+                            </label>
+                        `).join('')}
                     </div>
                 </div>
 
-                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-6">
+                <!-- 分组统计 -->
+                <div class="mb-6">
+                    <div class="text-sm font-bold text-gray-600 mb-3">测试范围统计</div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-gray-700">BE组</span>
+                            <span class="text-gray-500">${groupStats.BE}个单词</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-gray-700">KET组</span>
+                            <span class="text-gray-500">${groupStats.KET}个单词</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="font-bold text-gray-700">Culture组</span>
+                            <span class="text-gray-500">${groupStats.Culture}个单词</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-6">
                     <div class="flex items-center gap-2 mb-2">
                         <span class="text-xl">💡</span>
-                        <span class="font-bold text-amber-700">测试说明</span>
+                        <span class="font-bold text-purple-700">测试说明</span>
                     </div>
-                    <ul class="text-sm text-amber-600 space-y-1">
+                    <ul class="text-sm text-purple-600 space-y-1">
                         <li>• 听发音并输入完整单词</li>
                         <li>• 点击慢速按钮听清发音</li>
                         <li>• 显示中文释义辅助理解</li>
-                        <li>• 总共 ${totalWords} 个单词</li>
+                        <li>• 共 ${totalWords} 个单词（已选分组）</li>
                     </ul>
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="startFullTest(getFilteredWords())" class="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                    <button onclick="startFullTest(getFilteredWords())" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
                         开始全量测试 (${totalWords}个单词)
                     </button>
                     <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
