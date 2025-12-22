@@ -530,10 +530,15 @@ function startFullTest(words) {
         groups: state.settings.groups
     });
 
+    // 使用新的随机种子打乱单词
+    state.seed = Date.now();
+    const rng = seededRandom(state.seed);
+    const shuffledWords = shuffleArray([...words], rng);
+
     // 初始化全量测试会话
     state.fullTestSession = {
         testId: 'fulltest_' + Date.now(),
-        words: [...words],
+        words: shuffledWords,
         currentIndex: 0,
         score: 0,
         correctCount: 0,

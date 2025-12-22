@@ -1570,36 +1570,51 @@ function initFullTestGroupCheckboxes() {
  * 更新全量测试开始按钮文本
  */
 function updateFullTestStartButtonText() {
-    console.log('updateFullTestStartButtonText called');
+    console.log('=== updateFullTestStartButtonText CALLED ===');
     console.log('Current state.settings.groups:', state.settings.groups);
+    console.log('Type of groups:', typeof state.settings.groups);
+    console.log('Is array?', Array.isArray(state.settings.groups));
 
     const filteredWords = getFilteredWords();
-    console.log('Filtered words:', filteredWords.length);
+    console.log('Filtered words count:', filteredWords.length);
+    console.log('Filtered words:', filteredWords);
 
     const totalWords = filteredWords.length;
+    console.log('Total words to display:', totalWords);
 
     // 更新总单词数显示
     const totalWordsEl = document.getElementById('fulltest-total-words');
+    console.log('totalWordsEl element:', totalWordsEl);
     if (totalWordsEl) {
         totalWordsEl.textContent = totalWords;
+        console.log('✓ Updated totalWordsEl to:', totalWords);
+    } else {
+        console.error('✗ ERROR: totalWordsEl not found!');
     }
 
     // 更新按钮
     const startBtn = document.getElementById('fulltest-start-btn');
+    console.log('startBtn element:', startBtn);
     if (startBtn) {
         const newText = totalWords > 0
             ? `开始全量测试 (${totalWords}个单词)`
             : '请选择至少一个分组';
+        console.log('Setting button text to:', newText);
         startBtn.textContent = newText;
 
         if (totalWords > 0) {
             startBtn.disabled = false;
             startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
+            console.log('✓ Button enabled');
         } else {
             startBtn.disabled = true;
             startBtn.className = 'w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl cursor-not-allowed';
+            console.log('✓ Button disabled');
         }
+    } else {
+        console.error('✗ ERROR: startBtn not found!');
     }
+    console.log('=== updateFullTestStartButtonText END ===');
 }
 
 /**
