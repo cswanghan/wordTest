@@ -1703,8 +1703,8 @@ function renderFullTest() {
                             <div class="text-center text-2xl font-mono tracking-wider py-4 pointer-events-none select-none text-gray-300">
                                 ${generateWordHint(currentWord.en)}
                             </div>
-                            <!-- 输入框覆盖在上层 -->
-                            <input type="text" id="fulltest-input" placeholder="输入完整的英文单词..." class="absolute inset-0 w-full h-full px-6 py-4 text-2xl font-mono text-center bg-transparent border-4 border-gray-200 rounded-2xl focus:border-amber-500 focus:outline-none transition" autofocus>
+                            <!-- 输入框覆盖在上层，无占位符 -->
+                            <input type="text" id="fulltest-input" class="absolute inset-0 w-full h-full px-6 py-4 text-2xl font-mono text-center bg-transparent border-4 border-gray-200 rounded-2xl focus:border-amber-500 focus:outline-none transition caret-transparent" autofocus>
                         </div>
                     </div>
 
