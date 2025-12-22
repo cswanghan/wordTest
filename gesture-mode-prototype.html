@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体感模式原型 - Lion Festival G3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .letter-box {
+            transition: all 0.2s ease;
+        }
+        .letter-box:hover {
+            transform: scale(1.1);
+        }
+        .letter-box.selected {
+            border: 3px solid #10b981;
+            background: #d1fae5;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        #gesture-video {
+            filter: blur(5px) brightness(0.3);
+        }
+        #gesture-video.activated {
+            filter: blur(0) brightness(1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-amber-50 to-orange-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black text-gray-800 mb-2">🖐️ 体感模式原型</h1>
+            <p class="text-gray-600">手势识别拼写练习 - MVP 演示</p>
+        </div>
+
+        <!-- 摄像头区域 -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-3xl shadow-2xl p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 摄像头画面 -->
+                    <div class="relative">
+                        <h3 class="text-lg font-bold mb-3">📹 摄像头画面</h3>
+                        <div class="relative bg-black rounded-xl overflow-hidden aspect-video">
+                            <video id="gesture-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                            <div id="video-overlay" class="absolute inset-0 flex items-center justify-center">
+                                <button id="start-camera" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-xl transition">
+                                    点击启动摄像头
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-sm text-gray-500">
+                            <div id="camera-status">状态：未启动</div>
+                            <div id="gesture-status">手势：等待中...</div>
+                            <div id="fps-counter">FPS: 0</div>
+                        </div>
+                    </div>
+
+                    <!-- 手部关键点可视化 -->
+                    <div class="relative">
+                        <h3 class="text-lg font-bold mb-3">✋ 手部追踪</h3>
+                        <canvas id="gesture-canvas" class="w-full bg-black rounded-xl aspect-video"></canvas>
+                        <div class="mt-3 text-sm text-gray-500">
+                            <div>关键点：<span id="landmarks-count">0</span></div>
+                            <div>置信度：<span id="confidence">0</span>%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 字母洒满区域 -->
+        <div class="max-w-6xl mx-auto mb-8">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 relative overflow-hidden" style="height: 400px;">
+                <h3 class="text-lg font-bold mb-4">🎯 字母选择区域</h3>
+                <div id="letter-scatter" class="absolute inset-16"></div>
+                <div class="absolute bottom-4 left-4 text-sm text-gray-500">
+                    目标单词：<span id="target-word" class="font-bold text-amber-600">apple</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 输入框区域 -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-3xl shadow-2xl p-8">
+                <h3 class="text-lg font-bold mb-4">📝 拼写输入</h3>
+                <div id="input-slots" class="flex gap-3 justify-center mb-6"></div>
+                <div class="flex justify-center gap-4">
+                    <button onclick="submitAnswer()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl transition">
+                        提交答案
+                    </button>
+                    <button onclick="clearInput()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-xl transition">
+                        清空
+                    </button>
+                </div>
+                <div id="feedback" class="mt-4 text-center text-lg font-bold"></div>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-3xl shadow-2xl p-6">
+                <h3 class="text-lg font-bold mb-4">⚙️ 控制面板</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">难度</label>
+                        <select id="difficulty" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="easy">简单</option>
+                            <option value="medium" selected>中等</option>
+                            <option value="hard">困难</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">灵敏度</label>
+                        <select id="sensitivity" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="low">低</option>
+                            <option value="medium" selected>中</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">手势</label>
+                        <select id="gesture-mode" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="auto" selected>自动检测</option>
+                            <option value="palm">仅手掌</option>
+                            <option value="fist">仅握拳</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-600 mb-2">显示追踪</label>
+                        <button id="toggle-debug" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition">
+                            开启
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 说明文档 -->
+        <div class="max-w-4xl mx-auto mt-8">
+            <div class="bg-blue-50 rounded-3xl shadow-lg p-6 border-2 border-blue-200">
+                <h3 class="text-lg font-bold text-blue-800 mb-3">📖 使用说明</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <h4 class="font-bold text-blue-700 mb-2">手势操作</h4>
+                        <ul class="space-y-1 text-blue-600">
+                            <li>✋ 手掌张开：移动光标</li>
+                            <li>✊ 握拳：选择字母</li>
+                            <li>👆 指向：精确选择</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-blue-700 mb-2">系统要求</h4>
+                        <ul class="space-y-1 text-blue-600">
+                            <li>Chrome 80+ / Safari 13+ / Edge 80+</li>
+                            <li>WebGL 支持</li>
+                            <li>摄像头权限</li>
+                            <li>良好光照环境</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== MVP 原型核心逻辑 =====
+        // 注意：这是演示版本，使用模拟数据。完整版本需要集成 MediaPipe
+
+        // 全局状态
+        let currentWord = 'apple';
+        let inputIndex = 0;
+        let gestureMode = 'auto';
+        let isDebugMode = false;
+        let fps = 0;
+        let frameCount = 0;
+        let lastTime = performance.now();
+
+        // 模拟手势数据（实际版本将从 MediaPipe 获取）
+        let mockGesture = {
+            isHandVisible: false,
+            cursor: { x: 0, y: 0 },
+            gesture: 'none', // 'open_palm', 'closed_fist', 'pointing'
+            confidence: 0
+        };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎮 体感模式原型初始化');
+            initializeUI();
+            setupEventListeners();
+            startMockGestureSimulation();
+        });
+
+        // 初始化UI
+        function initializeUI() {
+            // 生成输入框
+            const inputSlots = document.getElementById('input-slots');
+            inputSlots.innerHTML = '';
+            for (let i = 0; i < currentWord.length; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'w-16 h-20 border-4 border-gray-300 rounded-xl flex items-center justify-center text-3xl font-mono font-bold';
+                slot.textContent = '_';
+                slot.id = `slot-${i}`;
+                inputSlots.appendChild(slot);
+            }
+
+            // 生成字母洒满
+            generateLetterScatter();
+
+            // 更新显示
+            updateDisplay();
+        }
+
+        // 事件监听
+        function setupEventListeners() {
+            document.getElementById('start-camera').addEventListener('click', startCamera);
+            document.getElementById('toggle-debug').addEventListener('click', toggleDebug);
+            document.getElementById('difficulty').addEventListener('change', generateLetterScatter);
+            document.getElementById('sensitivity').addEventListener('change', () => {});
+            document.getElementById('gesture-mode').addEventListener('change', (e) => {
+                gestureMode = e.target.value;
+            });
+        }
+
+        // 启动摄像头（模拟）
+        async function startCamera() {
+            const video = document.getElementById('gesture-video');
+            const overlay = document.getElementById('video-overlay');
+
+            try {
+                // 实际版本：请求摄像头权限
+                // const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // video.srcObject = stream;
+
+                // MVP 模拟：显示测试画面
+                video.src = 'data:image/svg+xml;base64,' + btoa(`
+                    <svg width="640" height="480" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="640" height="480" fill="#1a1a1a"/>
+                        <text x="320" y="240" font-size="24" fill="white" text-anchor="middle" font-family="Arial">
+                            摄像头画面 (模拟)
+                        </text>
+                        <text x="320" y="280" font-size="16" fill="#666" text-anchor="middle" font-family="Arial">
+                            实际版本将显示摄像头内容
+                        </text>
+                    </svg>
+                `);
+
+                overlay.style.display = 'none';
+                video.classList.add('activated');
+
+                document.getElementById('camera-status').textContent = '状态：运行中 ✅';
+                document.getElementById('gesture-status').textContent = '手势：等待手部...';
+
+                console.log('📹 摄像头启动成功');
+
+            } catch (error) {
+                console.error('❌ 摄像头启动失败:', error);
+                alert('摄像头启动失败：' + error.message);
+            }
+        }
+
+        // 生成字母洒满
+        function generateLetterScatter() {
+            const container = document.getElementById('letter-scatter');
+            const difficulty = document.getElementById('difficulty').value;
+            container.innerHTML = '';
+
+            // 生成字母池
+            const pool = generateLetterPool(currentWord, difficulty);
+
+            // 随机位置分布
+            pool.forEach((letter, index) => {
+                const box = document.createElement('div');
+                box.className = 'letter-box absolute w-16 h-16 bg-blue-100 border-2 border-blue-300 rounded-xl flex items-center justify-center text-2xl font-bold cursor-pointer';
+                box.textContent = letter.char;
+                box.dataset.char = letter.char;
+                box.dataset.isTarget = letter.isTarget;
+
+                // 随机位置（避免重叠）
+                const pos = calculateNonOverlappingPosition(index, pool.length);
+                box.style.left = pos.x + '%';
+                box.style.top = pos.y + '%';
+
+                // 目标字母特殊标记
+                if (letter.isTarget) {
+                    box.classList.add('bg-amber-100', 'border-amber-400');
+                }
+
+                container.appendChild(box);
+            });
+
+            console.log(`🎯 生成 ${pool.length} 个字母 (难度: ${difficulty})`);
+        }
+
+        // 生成字母池
+        function generateLetterPool(word, difficulty) {
+            const pool = [];
+            const difficultyMap = {
+                'easy': { decoys: 0 },
+                'medium': { decoys: 2 },
+                'hard': { decoys: 4 }
+            };
+
+            // 添加目标字母
+            word.split('').forEach(char => {
+                pool.push({ char, isTarget: true });
+            });
+
+            // 添加混淆字母
+            const decoyCount = difficultyMap[difficulty].decoys;
+            const allLetters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+            const usedLetters = new Set(word.split(''));
+
+            for (let i = 0; i < decoyCount; i++) {
+                let decoy;
+                do {
+                    decoy = allLetters[Math.floor(Math.random() * allLetters.length)];
+                } while (usedLetters.has(decoy));
+
+                pool.push({ char: decoy, isTarget: false });
+                usedLetters.add(decoy);
+            }
+
+            return pool;
+        }
+
+        // 计算非重叠位置
+        function calculateNonOverlappingPosition(index, total) {
+            const padding = 10; // 边缘留白
+            const cols = Math.ceil(Math.sqrt(total));
+            const rows = Math.ceil(total / cols);
+            const colWidth = (100 - padding * 2) / cols;
+            const rowHeight = (100 - padding * 2) / rows;
+
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+
+            const x = padding + col * colWidth + Math.random() * (colWidth - 20);
+            const y = padding + row * rowHeight + Math.random() * (rowHeight - 20);
+
+            return { x, y };
+        }
+
+        // 模拟手势循环
+        function startMockGestureSimulation() {
+            let mouseX = 50, mouseY = 50;
+            let targetX = 50, targetY = 50;
+            let gestureTimer = 0;
+
+            setInterval(() => {
+                // 随机移动目标
+                if (Math.random() < 0.05) {
+                    targetX = 20 + Math.random() * 60;
+                    targetY = 20 + Math.random() * 60;
+                }
+
+                // 平滑移动
+                mouseX += (targetX - mouseX) * 0.1;
+                mouseY += (targetY - mouseY) * 0.1;
+
+                // 模拟手势变化
+                gestureTimer++;
+                if (gestureTimer % 120 === 0) { // 每2秒变化
+                    const gestures = ['none', 'open_palm', 'closed_fist'];
+                    mockGesture.gesture = gestures[Math.floor(Math.random() * gestures.length)];
+                    mockGesture.confidence = 0.7 + Math.random() * 0.3;
+                }
+
+                // 更新手势状态
+                mockGesture.isHandVisible = true;
+                mockGesture.cursor = { x: mouseX, y: mouseY };
+
+                // 更新UI
+                updateGestureDisplay();
+                checkLetterCollision();
+
+                // FPS 计算
+                frameCount++;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    fps = Math.round(frameCount * 1000 / (now - lastTime));
+                    document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                    frameCount = 0;
+                    lastTime = now;
+                }
+
+            }, 1000 / 30); // 30 FPS
+        }
+
+        // 更新手势显示
+        function updateGestureDisplay() {
+            const status = document.getElementById('gesture-status');
+            const landmarks = document.getElementById('landmarks-count');
+            const confidence = document.getElementById('confidence');
+
+            status.textContent = `手势：${mockGesture.gesture} (${(mockGesture.confidence * 100).toFixed(0)}%)`;
+            landmarks.textContent = mockGesture.isHandVisible ? '21' : '0';
+            confidence.textContent = (mockGesture.confidence * 100).toFixed(0);
+
+            // 在画布上绘制
+            drawGestureCanvas();
+        }
+
+        // 绘制手势画布
+        function drawGestureCanvas() {
+            const canvas = document.getElementById('gesture-canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (mockGesture.isHandVisible) {
+                // 绘制手部轮廓（模拟）
+                const centerX = (mockGesture.cursor.x / 100) * canvas.width;
+                const centerY = (mockGesture.cursor.y / 100) * canvas.height;
+
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                // 绘制光标
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // 绘制手势状态
+                ctx.fillStyle = '#10b981';
+                ctx.font = '16px Arial';
+                ctx.fillText(`手势: ${mockGesture.gesture}`, 10, 25);
+                ctx.fillText(`置信度: ${(mockGesture.confidence * 100).toFixed(0)}%`, 10, 50);
+            }
+        }
+
+        // 检查字母碰撞
+        function checkLetterCollision() {
+            const letterBoxes = document.querySelectorAll('.letter-box');
+            let closestLetter = null;
+            let minDistance = Infinity;
+
+            // 找到最近的字母
+            letterBoxes.forEach(box => {
+                const rect = box.getBoundingClientRect();
+                const containerRect = document.getElementById('letter-scatter').getBoundingClientRect();
+
+                const letterX = rect.left + rect.width / 2 - containerRect.left;
+                const letterY = rect.top + rect.height / 2 - containerRect.top;
+
+                const cursorX = (mockGesture.cursor.x / 100) * containerRect.width;
+                const cursorY = (mockGesture.cursor.y / 100) * containerRect.height;
+
+                const distance = Math.sqrt(
+                    Math.pow(letterX - cursorX, 2) + Math.pow(letterY - cursorY, 2)
+                );
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestLetter = box;
+                }
+            });
+
+            // 清除之前的选择
+            letterBoxes.forEach(box => box.classList.remove('selected'));
+
+            // 高亮最近的字母
+            if (closestLetter && minDistance < 50) {
+                closestLetter.classList.add('selected');
+
+                // 如果是握拳手势，触发选择
+                if (mockGesture.gesture === 'closed_fist') {
+                    selectLetter(closestLetter);
+                    // 短暂延迟避免重复选择
+                    mockGesture.gesture = 'none';
+                }
+            }
+        }
+
+        // 选择字母
+        function selectLetter(letterBox) {
+            const char = letterBox.dataset.char;
+            const isTarget = letterBox.dataset.isTarget === 'true';
+
+            console.log(`📝 选择字母: ${char} (${isTarget ? '目标' : '干扰'})`);
+
+            if (inputIndex < currentWord.length) {
+                const slot = document.getElementById(`slot-${inputIndex}`);
+                slot.textContent = char;
+
+                if (isTarget) {
+                    slot.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
+                    inputIndex++;
+                } else {
+                    slot.classList.add('bg-red-100', 'border-red-500', 'text-red-700');
+                    // 错误反馈
+                    if (navigator.vibrate) navigator.vibrate(200);
+                }
+            }
+        }
+
+        // 提交答案
+        function submitAnswer() {
+            const slots = document.querySelectorAll('#input-slots div');
+            const answer = Array.from(slots).map(slot => slot.textContent).join('');
+            const isCorrect = answer === currentWord;
+
+            const feedback = document.getElementById('feedback');
+            if (isCorrect) {
+                feedback.textContent = '✅ 正确！';
+                feedback.className = 'mt-4 text-center text-lg font-bold text-green-600';
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+                // 播放成功动画
+                setTimeout(() => {
+                    clearInput();
+                    generateLetterScatter();
+                }, 2000);
+            } else {
+                feedback.textContent = `❌ 错误！正确答案是: ${currentWord}`;
+                feedback.className = 'mt-4 text-center text-lg font-bold text-red-600';
+            }
+        }
+
+        // 清空输入
+        function clearInput() {
+            const slots = document.querySelectorAll('#input-slots div');
+            slots.forEach(slot => {
+                slot.textContent = '_';
+                slot.className = 'w-16 h-20 border-4 border-gray-300 rounded-xl flex items-center justify-center text-3xl font-mono font-bold';
+            });
+            inputIndex = 0;
+            document.getElementById('feedback').textContent = '';
+        }
+
+        // 切换调试模式
+        function toggleDebug() {
+            isDebugMode = !isDebugMode;
+            const btn = document.getElementById('toggle-debug');
+            btn.textContent = isDebugMode ? '关闭' : '开启';
+            btn.className = isDebugMode ?
+                'w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition' :
+                'w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition';
+        }
+
+        // 更新显示
+        function updateDisplay() {
+            document.getElementById('target-word').textContent = currentWord;
+        }
+
+        // 调试日志
+        console.log('🚀 体感模式原型已加载');
+        console.log('📋 功能列表:');
+        console.log('  - 字母洒满系统');
+        console.log('  - 手势模拟追踪');
+        console.log('  - 碰撞检测');
+        console.log('  - 输入反馈');
+        console.log('');
+        console.log('⚠️  注意：这是 MVP 原型，使用模拟手势数据');
+        console.log('   完整版本需要集成 MediaPipe Hands');
+    </script>
+</body>
+</html>
