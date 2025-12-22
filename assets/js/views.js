@@ -1476,7 +1476,7 @@ function renderFullTestSettings(words) {
                     <div class="flex flex-wrap gap-2" id="fulltest-groups">
                         ${['BE', 'KET', 'Culture'].map(g => `
                             <label class="cursor-pointer select-none group">
-                                <input type="checkbox" value="${g}" class="peer sr-only" onchange="handleFullTestGroupToggle(this)">
+                                <input type="checkbox" value="${g}" class="peer sr-only" onchange="console.log('Checkbox changed:', this.value, this.checked); handleFullTestGroupToggle(this);">
                                 <div class="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-500 font-bold peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:text-purple-700 transition-all">
                                     ${g}
                                 </div>
@@ -1568,28 +1568,47 @@ function initFullTestGroupCheckboxes() {
  * @param {HTMLInputElement} checkbox - 复选框元素
  */
 function handleFullTestGroupToggle(checkbox) {
+    console.log('handleFullTestGroupToggle called', checkbox.value, checkbox.checked);
+
     // 更新状态
     updateGroups(checkbox);
 
-    // 更新总单词数显示和按钮状态
-    const totalWords = getFilteredWords().length;
-    const totalWordsEl = document.getElementById('fulltest-total-words');
-    const startBtn = document.getElementById('fulltest-start-btn');
+    // 强制重新获取最新数据
+    const filteredWords = getFilteredWords();
+    console.log('Filtered words:', filteredWords.length, filteredWords);
 
+    const totalWords = filteredWords.length;
+    console.log('Total words:', totalWords);
+
+    // 更新总单词数显示
+    const totalWordsEl = document.getElementById('fulltest-total-words');
+    console.log('totalWordsEl found:', totalWordsEl);
     if (totalWordsEl) {
         totalWordsEl.textContent = totalWords;
+        console.log('Updated totalWordsEl to:', totalWords);
+    } else {
+        console.error('totalWordsEl not found!');
     }
 
+    // 更新按钮
+    const startBtn = document.getElementById('fulltest-start-btn');
+    console.log('startBtn found:', startBtn);
     if (startBtn) {
+        const newText = totalWords > 0
+            ? `开始全量测试 (${totalWords}个单词)`
+            : '请选择至少一个分组';
+        startBtn.textContent = newText;
+        console.log('Updated startBtn to:', newText);
+
         if (totalWords > 0) {
-            startBtn.textContent = `开始全量测试 (${totalWords}个单词)`;
             startBtn.disabled = false;
             startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
         } else {
-            startBtn.textContent = '请选择至少一个分组';
             startBtn.disabled = true;
             startBtn.className = 'w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl cursor-not-allowed';
         }
+    } else {
+        console.error('startBtn not found!');
     }
 }
 

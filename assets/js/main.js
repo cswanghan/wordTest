@@ -42,6 +42,7 @@ const state = {
 function updateGroups(checkbox) {
     const val = checkbox.value;
     const wasChecked = checkbox.checked;
+    console.log('updateGroups called:', val, wasChecked, 'Current groups:', state.settings.groups);
 
     if (wasChecked) {
         if (!state.settings.groups.includes(val)) {
@@ -50,6 +51,8 @@ function updateGroups(checkbox) {
     } else {
         state.settings.groups = state.settings.groups.filter(g => g !== val);
     }
+
+    console.log('Updated groups:', state.settings.groups);
 
     // 记录设置变更
     analytics.trackSettingChange('groups', { action: wasChecked ? 'add' : 'remove', value: val });
