@@ -1443,20 +1443,23 @@ function generateWordHint(word) {
 
 /**
  * 新增：渲染全量测试设置页
- * @param {Array} words - 可用单词列表
+ * @param {Array} words - 可用单词列表（可选，默认使用当前设置）
  */
 function renderFullTestSettings(words) {
     state.view = 'fullTest';
     analytics.trackPageView('fullTest');
 
+    // 使用传入的 words 或从当前设置获取
+    const currentWords = words || getFilteredWords();
+
     // 统计各分组的单词数量
     const groupStats = {
-        BE: words.filter(w => w.group === 'BE').length,
-        KET: words.filter(w => w.group === 'KET').length,
-        Culture: words.filter(w => w.group === 'Culture').length
+        BE: WORDS.filter(w => w.group === 'BE').length,
+        KET: WORDS.filter(w => w.group === 'KET').length,
+        Culture: WORDS.filter(w => w.group === 'Culture').length
     };
 
-    const totalWords = words.length;
+    const totalWords = currentWords.length;
 
     app.innerHTML = `
         <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-amber-50 fade-in">
@@ -1515,7 +1518,7 @@ function renderFullTestSettings(words) {
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="startFullTest(getFilteredWords())" id="fulltest-start-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                    <button onclick="startFullTest(${JSON.stringify(currentWords)})" id="fulltest-start-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
                         开始全量测试 (${totalWords}个单词)
                     </button>
                     <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
@@ -1568,7 +1571,9 @@ function handleFullTestGroupToggle(checkbox) {
             startBtn.textContent = `开始全量测试 (${totalWords}个单词)`;
             startBtn.disabled = false;
             startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
-            startBtn.onclick = () => startFullTest(getFilteredWords());
+            // 更新onclick使用当前的单词列表
+            const currentWords = getFilteredWords();
+            startBtn.onclick = () => startFullTest(currentWords);
         } else {
             startBtn.textContent = '请选择至少一个分组';
             startBtn.disabled = true;

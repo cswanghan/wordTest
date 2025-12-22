@@ -508,6 +508,7 @@ function goToFullTest() {
         return;
     }
 
+    // 传递words给renderFullTestSettings以显示初始统计
     renderFullTestSettings(words);
 }
 
