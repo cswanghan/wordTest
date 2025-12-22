@@ -1518,7 +1518,7 @@ function renderFullTestSettings(words) {
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="startFullTest(${JSON.stringify(currentWords)})" id="fulltest-start-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
+                    <button id="fulltest-start-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0">
                         开始全量测试 (${totalWords}个单词)
                     </button>
                     <button onclick="renderHome()" class="w-full bg-white border-2 border-gray-200 hover:border-amber-400 text-gray-600 font-bold py-3 rounded-xl transition">
@@ -1529,10 +1529,24 @@ function renderFullTestSettings(words) {
         </div>
     `;
 
-    // 渲染完成后初始化复选框状态
+    // 渲染完成后初始化复选框状态和按钮事件
     setTimeout(() => {
         initFullTestGroupCheckboxes();
+        initFullTestStartButton();
     }, 0);
+}
+
+/**
+ * 初始化全量测试开始按钮
+ */
+function initFullTestStartButton() {
+    const startBtn = document.getElementById('fulltest-start-btn');
+    if (startBtn) {
+        startBtn.onclick = () => {
+            const words = getFilteredWords();
+            startFullTest(words);
+        };
+    }
 }
 
 /**
@@ -1557,7 +1571,7 @@ function handleFullTestGroupToggle(checkbox) {
     // 更新状态
     updateGroups(checkbox);
 
-    // 更新总单词数显示
+    // 更新总单词数显示和按钮状态
     const totalWords = getFilteredWords().length;
     const totalWordsEl = document.getElementById('fulltest-total-words');
     const startBtn = document.getElementById('fulltest-start-btn');
@@ -1571,14 +1585,10 @@ function handleFullTestGroupToggle(checkbox) {
             startBtn.textContent = `开始全量测试 (${totalWords}个单词)`;
             startBtn.disabled = false;
             startBtn.className = 'w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0';
-            // 更新onclick使用当前的单词列表
-            const currentWords = getFilteredWords();
-            startBtn.onclick = () => startFullTest(currentWords);
         } else {
             startBtn.textContent = '请选择至少一个分组';
             startBtn.disabled = true;
             startBtn.className = 'w-full bg-gray-300 text-gray-500 font-black py-4 rounded-2xl text-xl cursor-not-allowed';
-            startBtn.onclick = null;
         }
     }
 }
