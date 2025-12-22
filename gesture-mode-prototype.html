@@ -426,7 +426,7 @@
                 mockGesture.gesture = classifyGestureFromLandmarks(landmarks);
                 mockGesture.confidence = 0.95;
 
-                // 绘制手部关键点
+                // 只绘制手部关键点和光标，不清空
                 drawHandLandmarks(landmarks);
 
             } else {
@@ -502,7 +502,7 @@
             return tip.y < mcp.y - 0.05;
         }
 
-        // 绘制手部关键点（应用镜像变换）
+        // 绘制手部关键点和光标（应用镜像变换）
         function drawHandLandmarks(landmarks) {
             const canvas = document.getElementById('gesture-canvas');
             const ctx = canvas.getContext('2d');
@@ -528,14 +528,17 @@
                 ctx.fill();
             });
 
-            ctx.restore();
-
-            // 绘制光标位置（镜像）
+            // 绘制光标位置（使用镜像坐标）
             const cursor = calculateCursorFromLandmarks(landmarks);
+            const cursorX = (1 - cursor.x / 100) * canvas.width; // 应用镜像
+            const cursorY = (cursor.y / 100) * canvas.height;
+
             ctx.fillStyle = '#ef4444';
             ctx.beginPath();
-            ctx.arc((cursor.x / 100) * canvas.width, (cursor.y / 100) * canvas.height, 8, 0, 2 * Math.PI);
+            ctx.arc(cursorX, cursorY, 8, 0, 2 * Math.PI);
             ctx.fill();
+
+            ctx.restore();
         }
 
         // ===== 模拟手势循环 =====
@@ -594,12 +597,14 @@
             landmarks.textContent = mockGesture.isHandVisible ? '21' : '0';
             confidence.textContent = (mockGesture.confidence * 100).toFixed(0);
 
-            // 在画布上绘制
-            drawGestureCanvas();
+            // 模拟模式下绘制手势
+            if (document.getElementById('recognition-mode').value === 'mock') {
+                drawMockGestureCanvas();
+            }
         }
 
-        // 绘制手势画布（镜像版本）
-        function drawGestureCanvas() {
+        // 绘制模拟手势画布（镜像版本）
+        function drawMockGestureCanvas() {
             const canvas = document.getElementById('gesture-canvas');
             const ctx = canvas.getContext('2d');
 
@@ -629,7 +634,7 @@
                 // 绘制光标（镜像）
                 ctx.fillStyle = '#ef4444';
                 ctx.beginPath();
-                ctx.arc((mockGesture.cursor.x / 100) * canvas.width, (mockGesture.cursor.y / 100) * canvas.height, 5, 0, 2 * Math.PI);
+                ctx.arc((1 - mockGesture.cursor.x / 100) * canvas.width, (mockGesture.cursor.y / 100) * canvas.height, 8, 0, 2 * Math.PI);
                 ctx.fill();
 
                 // 绘制手势状态（不镜像文字）
@@ -640,7 +645,7 @@
             }
         }
 
-        // 检查字母碰撞
+        // 检查字母碰撞（应用镜像）
         function checkLetterCollision() {
             const letterBoxes = document.querySelectorAll('.letter-box');
             let closestLetter = null;
@@ -654,7 +659,8 @@
                 const letterX = rect.left + rect.width / 2 - containerRect.left;
                 const letterY = rect.top + rect.height / 2 - containerRect.top;
 
-                const cursorX = (mockGesture.cursor.x / 100) * containerRect.width;
+                // 应用镜像到光标坐标
+                const cursorX = (1 - mockGesture.cursor.x / 100) * containerRect.width;
                 const cursorY = (mockGesture.cursor.y / 100) * containerRect.height;
 
                 const distance = Math.sqrt(
