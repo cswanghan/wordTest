@@ -1680,7 +1680,7 @@ function renderFullTest() {
                     </div>
 
                     <!-- 发音按钮 -->
-                    <div class="flex justify-center gap-4 mb-8">
+                    <div class="flex justify-center gap-4 mb-4">
                         <button onclick="playNormalPronunciation('${currentWord.en}')" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
@@ -1695,17 +1695,24 @@ function renderFullTest() {
                         </button>
                     </div>
 
+                    <!-- 退格按钮 -->
+                    <div class="flex justify-center mb-8">
+                        <button onclick="handleFullTestBackspace()" class="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-xl transition shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M7 8l10.5 10.5a1 1 0 001.414 0L17 8M5 12h14" />
+                            </svg>
+                            <span>退格</span>
+                        </button>
+                    </div>
+
                     <!-- 字母长度提示和输入框组合 -->
                     <div class="mb-6">
                         <div class="text-center text-sm font-bold text-gray-400 uppercase mb-2">字母长度提示</div>
-                        <div class="relative">
-                            <!-- 下划线提示作为背景 -->
-                            <div class="text-center text-2xl font-mono tracking-wider py-4 pointer-events-none select-none text-gray-300">
-                                ${generateWordHint(currentWord.en)}
-                            </div>
-                            <!-- 输入框覆盖在上层，无占位符 -->
-                            <input type="text" id="fulltest-input" class="absolute inset-0 w-full h-full px-6 py-4 text-2xl font-mono text-center bg-transparent border-4 border-gray-200 rounded-2xl focus:border-amber-500 focus:outline-none transition caret-transparent" autofocus>
+                        <div class="flex justify-center items-center flex-wrap gap-1 sm:gap-2 mb-4" id="fulltest-letter-boxes">
+                            <!-- 字母框将在这里动态生成 -->
                         </div>
+                        <!-- 隐藏的输入框用于键盘输入 -->
+                        <input type="text" id="fulltest-input" class="opacity-0 absolute pointer-events-none" autocomplete="off" />
                     </div>
 
                     <!-- 反馈区域 -->
@@ -1737,11 +1744,94 @@ function renderFullTest() {
         </div>
     `;
 
-    // 聚焦到输入框
+    // 聚焦到输入框并生成字母框
     setTimeout(() => {
         const input = document.getElementById('fulltest-input');
         if (input) input.focus();
+
+        // 生成字母框
+        generateFullTestLetterBoxes(currentWord.en);
     }, 100);
+}
+
+/**
+ * 处理全量测试退格
+ */
+function handleFullTestBackspace() {
+    const letterBoxesContainer = document.getElementById('fulltest-letter-boxes');
+    if (!letterBoxesContainer) return;
+
+    const letterBoxes = letterBoxesContainer.querySelectorAll('div');
+
+    // 从后往前找到第一个有内容的框并删除
+    for (let i = letterBoxes.length - 1; i >= 0; i--) {
+        if (letterBoxes[i].textContent !== '') {
+            letterBoxes[i].textContent = '';
+            letterBoxes[i].className = 'w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 bg-gray-100 border-gray-300 text-transparent border-b-4';
+            break;
+        }
+    }
+}
+
+/**
+ * 生成全量测试的字母框
+ * @param {string} word - 单词
+ */
+function generateFullTestLetterBoxes(word) {
+    const container = document.getElementById('fulltest-letter-boxes');
+    if (!container) return;
+
+    // 清空容器
+    container.innerHTML = '';
+
+    // 为每个字母生成一个框
+    word.split('').forEach((char, index) => {
+        const letterBox = document.createElement('div');
+        letterBox.className = 'w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 bg-gray-100 border-gray-300 text-transparent border-b-4';
+        letterBox.textContent = '';
+        letterBox.dataset.index = index;
+        letterBox.dataset.char = char;
+        container.appendChild(letterBox);
+    });
+
+    // 添加键盘事件监听
+    const input = document.getElementById('fulltest-input');
+    if (input) {
+        // 清除之前的监听器
+        input.value = '';
+        input.oninput = null;
+
+        input.oninput = (e) => {
+            const value = e.target.value;
+            const letterBoxes = container.querySelectorAll('div');
+
+            if (value === 'BACKSPACE') {
+                // 退格：删除最后一个输入的字母
+                for (let i = letterBoxes.length - 1; i >= 0; i--) {
+                    if (letterBoxes[i].textContent !== '') {
+                        letterBoxes[i].textContent = '';
+                        letterBoxes[i].className = 'w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 bg-gray-100 border-gray-300 text-transparent border-b-4';
+                        break;
+                    }
+                }
+            } else if (value.length > 0) {
+                // 输入字母：填入下一个空位置
+                const char = value[value.length - 1];
+                if (/^[a-zA-Z]$/.test(char)) {
+                    for (let i = 0; i < letterBoxes.length; i++) {
+                        if (letterBoxes[i].textContent === '') {
+                            letterBoxes[i].textContent = char;
+                            letterBoxes[i].className = letterBoxes[i].className.replace('text-transparent', 'text-gray-800').replace('bg-gray-100', 'bg-amber-50').replace('border-gray-300', 'border-amber-500');
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 清空输入框
+            e.target.value = '';
+        };
+    }
 }
 
 /**

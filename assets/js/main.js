@@ -443,9 +443,27 @@ function handleWordComplete(item) {
 
 // 键盘事件监听
 document.addEventListener('keydown', (e) => {
-    if (state.view !== 'online') return;
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    handleKeyInput(e.key);
+
+    if (state.view === 'online') {
+        handleKeyInput(e.key);
+    } else if (state.view === 'fullTest') {
+        // 全量测试的键盘输入
+        if (e.key === 'Backspace') {
+            e.preventDefault();
+            const input = document.getElementById('fulltest-input');
+            if (input) {
+                input.value = 'BACKSPACE';
+                input.dispatchEvent(new Event('input'));
+            }
+        } else if (/^[a-zA-Z]$/.test(e.key)) {
+            const input = document.getElementById('fulltest-input');
+            if (input) {
+                input.value = e.key;
+                input.dispatchEvent(new Event('input'));
+            }
+        }
+    }
 });
 
 // 页面加载完成后初始化
@@ -565,10 +583,17 @@ function submitFullTestWord() {
     if (!state.fullTestSession) return;
 
     const currentWord = state.fullTestSession.words[state.fullTestSession.currentIndex];
-    const inputElement = document.getElementById('fulltest-input');
-    if (!inputElement) return;
+    const letterBoxesContainer = document.getElementById('fulltest-letter-boxes');
+    if (!letterBoxesContainer) return;
 
-    const userInput = inputElement.value.trim().toLowerCase();
+    // 从字母框读取输入
+    const letterBoxes = letterBoxesContainer.querySelectorAll('div');
+    let userInput = '';
+    letterBoxes.forEach(box => {
+        userInput += box.textContent;
+    });
+    userInput = userInput.toLowerCase();
+
     const correctAnswer = currentWord.en.toLowerCase();
     const isCorrect = userInput === correctAnswer;
 
