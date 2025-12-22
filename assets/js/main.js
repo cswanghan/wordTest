@@ -54,8 +54,14 @@ function updateGroups(checkbox) {
 
     console.log('Updated groups:', state.settings.groups);
 
-    // 记录设置变更
-    analytics.trackSettingChange('groups', { action: wasChecked ? 'add' : 'remove', value: val });
+    // 记录设置变更 (只记录，不修改 state)
+    try {
+        const oldValue = [...state.settings.groups];
+        // 手动记录，不调用会修改 state 的函数
+        logger.settingChange('groups', oldValue, state.settings.groups);
+    } catch(e) {
+        console.warn('Setting change logging failed:', e);
+    }
     logger.userAction('GROUP_TOGGLE', 'checkbox', { group: val, checked: wasChecked });
 }
 
