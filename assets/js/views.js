@@ -4,7 +4,7 @@
  */
 
 const app = document.getElementById('app');
-const APP_VERSION = 'v1.2.0 (Phase 2)';
+const APP_VERSION = 'v1.2.1';
 
 /**
  * 渲染版本号
