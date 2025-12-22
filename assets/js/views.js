@@ -1425,6 +1425,23 @@ function renderMemoryAnalysis() {
 }
 
 /**
+ * 生成单词字母长度提示
+ * @param {string} word - 单词
+ * @returns {string} HTML字符串，包含下划线和空格
+ */
+function generateWordHint(word) {
+    if (!word) return '';
+
+    const parts = word.split(' ');
+    const hints = parts.map(part => {
+        return '_ '.repeat(part.length).trim();
+    });
+
+    // 用实际的空格分隔
+    return hints.join(' ');
+}
+
+/**
  * 新增：渲染全量测试设置页
  * @param {Array} words - 可用单词列表
  */
@@ -1572,6 +1589,14 @@ function renderFullTest() {
                             </svg>
                             <span>慢速</span>
                         </button>
+                    </div>
+
+                    <!-- 字母长度提示 -->
+                    <div class="mb-4">
+                        <div class="text-center text-sm font-bold text-gray-400 uppercase mb-2">字母长度提示</div>
+                        <div class="text-center text-2xl font-mono tracking-wider">
+                            ${generateWordHint(currentWord.en)}
+                        </div>
                     </div>
 
                     <!-- 输入框 -->
