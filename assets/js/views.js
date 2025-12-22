@@ -1695,17 +1695,17 @@ function renderFullTest() {
                         </button>
                     </div>
 
-                    <!-- 字母长度提示 -->
-                    <div class="mb-4">
-                        <div class="text-center text-sm font-bold text-gray-400 uppercase mb-2">字母长度提示</div>
-                        <div class="text-center text-2xl font-mono tracking-wider">
-                            ${generateWordHint(currentWord.en)}
-                        </div>
-                    </div>
-
-                    <!-- 输入框 -->
+                    <!-- 字母长度提示和输入框组合 -->
                     <div class="mb-6">
-                        <input type="text" id="fulltest-input" placeholder="输入完整的英文单词..." class="w-full px-6 py-4 text-2xl font-mono text-center border-4 border-gray-200 rounded-2xl focus:border-amber-500 focus:outline-none transition" autofocus>
+                        <div class="text-center text-sm font-bold text-gray-400 uppercase mb-2">字母长度提示</div>
+                        <div class="relative">
+                            <!-- 下划线提示作为背景 -->
+                            <div class="text-center text-2xl font-mono tracking-wider py-4 pointer-events-none select-none text-gray-300">
+                                ${generateWordHint(currentWord.en)}
+                            </div>
+                            <!-- 输入框覆盖在上层 -->
+                            <input type="text" id="fulltest-input" placeholder="输入完整的英文单词..." class="absolute inset-0 w-full h-full px-6 py-4 text-2xl font-mono text-center bg-transparent border-4 border-gray-200 rounded-2xl focus:border-amber-500 focus:outline-none transition" autofocus>
+                        </div>
                     </div>
 
                     <!-- 反馈区域 -->
