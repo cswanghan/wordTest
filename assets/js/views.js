@@ -4,7 +4,7 @@
  */
 
 const app = document.getElementById('app');
-const APP_VERSION = 'v1.2.9';
+const APP_VERSION = 'v1.2.10';
 
 /**
  * 渲染版本号

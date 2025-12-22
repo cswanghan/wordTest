@@ -493,41 +493,41 @@
 
             const averageOpenness = fingerOpenness.filter(open => open).length / 5;
 
-            // 分类
-            if (averageOpenness > 0.8) {
+            // 分类（优化阈值）
+            if (averageOpenness >= 0.8) {
                 return 'open_palm';
-            } else if (averageOpenness < 0.3) {
+            } else if (averageOpenness <= 0.2) {
                 return 'closed_fist';
             } else {
                 return 'pointing';
             }
         }
 
-        // 检查手指是否张开
+        // 检查手指是否张开（优化阈值）
         function isThumbOpen(landmarks) {
             const tip = landmarks[4];
             const mcp = landmarks[2];
-            return Math.abs(tip.x - mcp.x) > 0.05;
+            return Math.abs(tip.x - mcp.x) > 0.06; // 增加阈值
         }
         function isIndexOpen(landmarks) {
             const tip = landmarks[8];
             const mcp = landmarks[5];
-            return tip.y < mcp.y - 0.05;
+            return tip.y < mcp.y - 0.06; // 增加阈值
         }
         function isMiddleOpen(landmarks) {
             const tip = landmarks[12];
             const mcp = landmarks[9];
-            return tip.y < mcp.y - 0.05;
+            return tip.y < mcp.y - 0.06; // 增加阈值
         }
         function isRingOpen(landmarks) {
             const tip = landmarks[16];
             const mcp = landmarks[13];
-            return tip.y < mcp.y - 0.05;
+            return tip.y < mcp.y - 0.06; // 增加阈值
         }
         function isPinkyOpen(landmarks) {
             const tip = landmarks[20];
             const mcp = landmarks[17];
-            return tip.y < mcp.y - 0.05;
+            return tip.y < mcp.y - 0.06; // 增加阈值
         }
 
         // 绘制手部关键点和光标（应用镜像变换）
@@ -705,15 +705,24 @@
             letterBoxes.forEach(box => box.classList.remove('selected'));
 
             // 高亮最近的字母
-            if (closestLetter && minDistance < 50) {
+            if (closestLetter && minDistance < 60) { // 增加到60像素范围
                 closestLetter.classList.add('selected');
+
+                // 添加选择提示
+                const status = document.getElementById('gesture-status');
+                status.textContent = `手势：握拳选择 (${closestLetter.dataset.char})`;
 
                 // 如果是握拳手势，触发选择
                 if (mockGesture.gesture === 'closed_fist') {
+                    console.log('✊ 检测到握拳手势，触发选择');
                     selectLetter(closestLetter);
                     // 短暂延迟避免重复选择
                     mockGesture.gesture = 'none';
                 }
+            } else {
+                // 恢复状态显示
+                const status = document.getElementById('gesture-status');
+                status.textContent = `手势：${mockGesture.gesture} (${(mockGesture.confidence * 100).toFixed(0)}%)`;
             }
         }
 
@@ -724,19 +733,57 @@
 
             console.log(`📝 选择字母: ${char} (${isTarget ? '目标' : '干扰'})`);
 
+            // 清除字母高亮
+            letterBox.classList.remove('selected');
+
             if (inputIndex < currentWord.length) {
                 const slot = document.getElementById(`slot-${inputIndex}`);
                 slot.textContent = char;
 
                 if (isTarget) {
+                    // 正确选择 - 绿色反馈
                     slot.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
                     inputIndex++;
+
+                    // 成功反馈
+                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    showSelectionFeedback('✅ 正确！', 'success');
+
                 } else {
+                    // 错误选择 - 红色反馈
                     slot.classList.add('bg-red-100', 'border-red-500', 'text-red-700');
+
                     // 错误反馈
                     if (navigator.vibrate) navigator.vibrate(200);
+                    showSelectionFeedback('❌ 错误！选择目标字母', 'error');
                 }
             }
+
+            // 更新状态显示
+            setTimeout(() => {
+                const status = document.getElementById('gesture-status');
+                status.textContent = `手势：${mockGesture.gesture} (${(mockGesture.confidence * 100).toFixed(0)}%)`;
+            }, 1000);
+        }
+
+        // 显示选择反馈
+        function showSelectionFeedback(message, type) {
+            const status = document.getElementById('gesture-status');
+            const originalText = status.textContent;
+
+            status.textContent = message;
+
+            if (type === 'success') {
+                status.className = 'text-green-600 font-bold';
+            } else {
+                status.className = 'text-red-600 font-bold';
+            }
+
+            // 2秒后恢复
+            setTimeout(() => {
+                status.textContent = originalText;
+                status.className = '';
+            }, 2000);
         }
 
         // 提交答案
