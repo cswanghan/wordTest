@@ -4,7 +4,7 @@
  */
 
 const app = document.getElementById('app');
-const APP_VERSION = 'v1.2.1';
+const APP_VERSION = 'v1.2.2';
 
 /**
  * 渲染版本号
@@ -1755,25 +1755,6 @@ function renderFullTest() {
 }
 
 /**
- * 处理全量测试退格
- */
-function handleFullTestBackspace() {
-    const letterBoxesContainer = document.getElementById('fulltest-letter-boxes');
-    if (!letterBoxesContainer) return;
-
-    const letterBoxes = letterBoxesContainer.querySelectorAll('div');
-
-    // 从后往前找到第一个有内容的框并删除
-    for (let i = letterBoxes.length - 1; i >= 0; i--) {
-        if (letterBoxes[i].textContent !== '') {
-            letterBoxes[i].textContent = '';
-            letterBoxes[i].className = 'w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 bg-gray-100 border-gray-300 text-transparent border-b-4';
-            break;
-        }
-    }
-}
-
-/**
  * 生成全量测试的字母框
  * @param {string} word - 单词
  */
@@ -1793,45 +1774,6 @@ function generateFullTestLetterBoxes(word) {
         letterBox.dataset.char = char;
         container.appendChild(letterBox);
     });
-
-    // 添加键盘事件监听
-    const input = document.getElementById('fulltest-input');
-    if (input) {
-        // 清除之前的监听器
-        input.value = '';
-        input.oninput = null;
-
-        input.oninput = (e) => {
-            const value = e.target.value;
-            const letterBoxes = container.querySelectorAll('div');
-
-            if (value === 'BACKSPACE') {
-                // 退格：删除最后一个输入的字母
-                for (let i = letterBoxes.length - 1; i >= 0; i--) {
-                    if (letterBoxes[i].textContent !== '') {
-                        letterBoxes[i].textContent = '';
-                        letterBoxes[i].className = 'w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 bg-gray-100 border-gray-300 text-transparent border-b-4';
-                        break;
-                    }
-                }
-            } else if (value.length > 0) {
-                // 输入字母：填入下一个空位置
-                const char = value[value.length - 1];
-                if (/^[a-zA-Z]$/.test(char)) {
-                    for (let i = 0; i < letterBoxes.length; i++) {
-                        if (letterBoxes[i].textContent === '') {
-                            letterBoxes[i].textContent = char;
-                            letterBoxes[i].className = letterBoxes[i].className.replace('text-transparent', 'text-gray-800').replace('bg-gray-100', 'bg-amber-50').replace('border-gray-300', 'border-amber-500');
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // 清空输入框
-            e.target.value = '';
-        };
-    }
 }
 
 /**

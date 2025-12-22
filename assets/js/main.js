@@ -444,6 +444,7 @@ function handleWordComplete(item) {
 // 键盘事件监听
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (state.view !== 'online' && state.view !== 'fullTest') return;
 
     if (state.view === 'online') {
         handleKeyInput(e.key);
@@ -451,17 +452,9 @@ document.addEventListener('keydown', (e) => {
         // 全量测试的键盘输入
         if (e.key === 'Backspace') {
             e.preventDefault();
-            const input = document.getElementById('fulltest-input');
-            if (input) {
-                input.value = 'BACKSPACE';
-                input.dispatchEvent(new Event('input'));
-            }
+            handleFullTestBackspace();
         } else if (/^[a-zA-Z]$/.test(e.key)) {
-            const input = document.getElementById('fulltest-input');
-            if (input) {
-                input.value = e.key;
-                input.dispatchEvent(new Event('input'));
-            }
+            handleFullTestCharInput(e.key);
         }
     }
 });
@@ -668,6 +661,45 @@ function showFullTestFeedback(isCorrect, score) {
     }
 
     feedbackEl.style.opacity = '1';
+}
+
+/**
+ * 处理全量测试字符输入
+ * @param {string} char - 输入的字符
+ */
+function handleFullTestCharInput(char) {
+    const letterBoxesContainer = document.getElementById('fulltest-letter-boxes');
+    if (!letterBoxesContainer) return;
+
+    const letterBoxes = letterBoxesContainer.querySelectorAll('div');
+
+    // 查找下一个空位置并填入
+    for (let i = 0; i < letterBoxes.length; i++) {
+        if (letterBoxes[i].textContent === '') {
+            letterBoxes[i].textContent = char;
+            letterBoxes[i].className = letterBoxes[i].className.replace('text-transparent', 'text-gray-800').replace('bg-gray-100', 'bg-amber-50').replace('border-gray-300', 'border-amber-500');
+            break;
+        }
+    }
+}
+
+/**
+ * 处理全量测试退格
+ */
+function handleFullTestBackspace() {
+    const letterBoxesContainer = document.getElementById('fulltest-letter-boxes');
+    if (!letterBoxesContainer) return;
+
+    const letterBoxes = letterBoxesContainer.querySelectorAll('div');
+
+    // 从后往前找到第一个有内容的框并删除
+    for (let i = letterBoxes.length - 1; i >= 0; i--) {
+        if (letterBoxes[i].textContent !== '') {
+            letterBoxes[i].textContent = '';
+            letterBoxes[i].className = 'w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-3xl sm:text-4xl font-mono rounded-lg transition-all duration-200 mx-0.5 bg-gray-100 border-gray-300 text-transparent border-b-4';
+            break;
+        }
+    }
 }
 
 /**
