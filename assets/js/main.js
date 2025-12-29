@@ -706,7 +706,19 @@ function handleFullTestBackspace() {
  * 新增：完成全量测试
  */
 function finishFullTest() {
+    console.log('finishFullTest() 被调用'); // 调试日志
+
+    // 保存会话数据到局部变量，避免状态在渲染过程中变化
     const session = state.fullTestSession;
+    console.log('session 数据:', session); // 调试日志
+
+    if (!session) {
+        console.error('错误: state.fullTestSession 为 null');
+        alert('发生错误，请返回首页重试');
+        renderHome();
+        return;
+    }
+
     const totalWords = session.words.length;
     const accuracy = Math.round((session.correctCount / totalWords) * 100);
     const avgTime = Math.round(session.totalTime / totalWords);
@@ -732,5 +744,6 @@ function finishFullTest() {
         totalWords: totalWords
     });
 
-    renderFullTestResult();
+    // 渲染结果页
+    renderFullTestResult(session);
 }

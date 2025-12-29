@@ -1778,18 +1778,29 @@ function generateFullTestLetterBoxes(word) {
 
 /**
  * 新增：渲染全量测试结果页
+ * @param {Object} sessionData - 全量测试会话数据，如果不传则从 state 获取
  */
-function renderFullTestResult() {
+function renderFullTestResult(sessionData) {
     state.view = 'fullTestResult';
-    const session = state.fullTestSession;
-    const totalWords = session.words.length;
-    const accuracy = Math.round((session.correctCount / totalWords) * 100);
+
+    // 如果没有传入 sessionData，尝试从 state 获取
+    const session = sessionData || state.fullTestSession;
+
+    if (!session) {
+        console.error('错误: 无法获取测试会话数据');
+        alert('发生错误，无法显示测试结果，请返回首页重试');
+        renderHome();
+        return;
+    }
+
+    const totalWords = session.words ? session.words.length : 0;
+    const accuracy = totalWords > 0 ? Math.round((session.correctCount / totalWords) * 100) : 0;
     const totalTimeSec = Math.round(session.totalTime / 1000);
     const minutes = Math.floor(totalTimeSec / 60);
     const seconds = totalTimeSec % 60;
 
     // 找出未掌握的单词
-    const wrongWords = session.results.filter(r => !r.isCorrect);
+    const wrongWords = session.results ? session.results.filter(r => !r.isCorrect) : [];
 
     app.innerHTML = `
         <div class="min-h-screen flex items-center justify-center p-4 bg-amber-50 fade-in">
